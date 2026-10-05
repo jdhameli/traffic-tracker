@@ -1,0 +1,366 @@
+/* ==========================================================================
+   Modern Minimal Light Theme Components (Touch-Optimized & Micro-Interactions)
+   ========================================================================== */
+
+/* Control Items */
+.control-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.control-prefix {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+/* Minimal Custom Select */
+.custom-select-wrapper {
+  position: relative;
+  display: inline-flex;
+  max-width: 100%;
+}
+
+.custom-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background-color: var(--color-bg-subtle-glass);
+  color: var(--color-text-primary);
+  font-family: var(--font-family-sans);
+  font-size: 0.82rem;
+  font-weight: 500;
+  padding: 8px 34px 8px 14px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  outline: none;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  min-height: 36px;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.custom-select:hover {
+  border-color: var(--color-border-hover);
+  background-color: #ffffff;
+}
+
+.custom-select:focus-visible {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-primary-subtle);
+}
+
+.custom-select-wrapper::after {
+  content: '';
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-right: 2px solid var(--color-text-muted);
+  border-bottom: 2px solid var(--color-text-muted);
+  transform: translateY(-70%) rotate(45deg);
+  pointer-events: none;
+  transition: var(--transition-fast);
+}
+
+/* Direction Segmented Switch */
+.toggle-segmented {
+  display: inline-flex;
+  background: var(--color-bg-subtle-glass);
+  padding: 3px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  gap: 2px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.toggle-segmented::-webkit-scrollbar {
+  display: none;
+}
+
+.toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-sans);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+  min-height: 32px;
+  user-select: none;
+}
+
+.toggle-btn:hover:not(.active) {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.toggle-btn:active {
+  transform: scale(0.97);
+}
+
+.toggle-btn.active {
+  background: var(--color-primary);
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+.toggle-btn[data-dir="reverse"].active {
+  background: var(--color-primary);
+}
+
+/* Metric Segmented Chips */
+.metric-chips {
+  display: inline-flex;
+  background: var(--color-bg-subtle-glass);
+  padding: 3px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  gap: 2px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.metric-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.metric-chip-btn {
+  padding: 6px 13px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-sans);
+  font-size: 0.78rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+  min-height: 32px;
+  user-select: none;
+}
+
+.metric-chip-btn:hover:not(.active) {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.metric-chip-btn:active {
+  transform: scale(0.97);
+}
+
+.metric-chip-btn.active {
+  background: #ffffff;
+  color: var(--color-primary);
+  font-weight: 600;
+  border: 1px solid var(--color-primary-border);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Header View Navigation Tabs */
+.view-tabs {
+  display: inline-flex;
+  background: var(--color-bg-subtle-glass);
+  padding: 3px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--color-border);
+  gap: 2px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.view-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.view-tab-btn {
+  padding: 7px 15px;
+  background: transparent;
+  color: var(--color-text-secondary);
+  border: none;
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-sans);
+  font-size: 0.8rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  white-space: nowrap;
+  min-height: 34px;
+  user-select: none;
+}
+
+.view-tab-btn:hover:not(.active) {
+  color: var(--color-text-primary);
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.view-tab-btn:active {
+  transform: scale(0.97);
+}
+
+.view-tab-btn.active {
+  background: #ffffff;
+  color: var(--color-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
+}
+
+/* Date Navigators */
+.date-navigator-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 100%;
+  flex-wrap: wrap;
+}
+
+.date-nav-controls {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.date-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--color-bg-subtle-glass);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: 0.74rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.date-nav-btn:hover {
+  color: var(--color-text-primary);
+  background: #ffffff;
+  border-color: var(--color-border-hover);
+  box-shadow: var(--shadow-xs);
+}
+
+.date-nav-btn:active {
+  transform: scale(0.92);
+}
+
+.date-current-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--color-bg-subtle-glass);
+  padding: 4px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  min-height: 32px;
+}
+
+.date-input {
+  background: transparent;
+  color: var(--color-text-primary);
+  border: none;
+  font-family: var(--font-family-sans);
+  font-size: 0.76rem;
+  font-weight: 500;
+  color-scheme: light;
+  outline: none;
+  cursor: pointer;
+}
+
+.date-weekday-tag, .date-week-tag, .date-month-tag {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--color-text-primary);
+  white-space: nowrap;
+}
+
+.heatmap-mode-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 6px 13px;
+  background: var(--color-bg-subtle-glass);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-family: var(--font-family-sans);
+  font-size: 0.76rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: var(--transition-fast);
+  min-height: 32px;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.heatmap-mode-toggle-btn:hover {
+  background: #ffffff;
+  color: var(--color-primary);
+  border-color: var(--color-primary-border);
+}
+
+.heatmap-mode-toggle-btn:active {
+  transform: scale(0.97);
+}
+
+.heatmap-mode-toggle-btn.active {
+  background: #ffffff;
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Mobile adjustments */
+@media (max-width: 640px) {
+  .toggle-segmented, .metric-chips, .view-tabs {
+    width: 100%;
+  }
+
+  .toggle-btn, .metric-chip-btn, .view-tab-btn {
+    flex: 1 1 auto;
+    text-align: center;
+  }
+
+  .custom-select-wrapper, .custom-select {
+    width: 100%;
+  }
+
+  .date-navigator-container {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .date-nav-controls {
+    justify-content: center;
+    width: 100%;
+  }
+}

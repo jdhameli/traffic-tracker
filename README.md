@@ -20,19 +20,46 @@ traffic-tracker/
 │   └── routes/                   # Auto-generated monthly CSV data
 │       ├── ROUTE_01/
 │       │   └── 2026-10.csv
-│       ├── ROUTE_02/
-│       │   └── 2026-10.csv
 │       └── ...
-├── src/
-│   ├── config.js                 # Configuration loader and validator
-│   ├── tomtom.js                 # TomTom Routing API client with retry & rate limiting
-│   ├── storage.js                # CSV file writer and directory manager
-│   └── tracker.js                # Main bidirectional execution engine
-├── tests/
-│   └── tracker.test.js           # Automated test suite
+├── dashboard/                    # Interactive Analytics Dashboard
+│   ├── css/                      # Modular styling & design tokens
+│   └── js/                       # ES modules (API, stats engine, views)
+├── src/                          # Traffic collection engine
+│   ├── config.js
+│   ├── tomtom.js
+│   ├── storage.js
+│   └── tracker.js
+├── tests/                        # Test suite
+│   ├── tracker.test.js
+│   └── dashboard.test.js
+├── index.html                    # GitHub Pages dashboard entrypoint
 ├── package.json
 └── README.md
 ```
+
+---
+
+## 📈 Interactive Web Dashboard (GitHub Pages)
+
+An interactive, responsive analytics dashboard is included and ready to host directly via **GitHub Pages** (or run locally).
+
+### Features
+1. **Universal EDT Time Mapping**: All timestamps, hourly bins, and day-of-week views are rendered in local Eastern Time (EDT).
+2. **Dynamic Route & Direction Switching**: Select any configured route and toggle between `Forward` ($A \rightarrow B$) and `Reverse` ($B \rightarrow A$) instantly.
+3. **4 Analytical Views**:
+   - **Congestion Delay Heatmap**: Day of Week (Sun–Sat) vs. Hour of Day (0–23 EDT) matrix colored by delay intensity with sample counts.
+   - **Daily View**: 24-hour time-of-day timeline with live points + **Historical Median Trendline** computed from previous matching days.
+   - **Weekly View**: 7-day progression + **Historical Weekly Median Baseline**.
+   - **Monthly View**: Calendar-day progression + **Historical Monthly Median Baseline**.
+4. **KPI Summary Cards**: Real-time stats for current delay, baseline freeflow, peak delay, and total samples.
+
+### 🚀 Running the Dashboard Locally
+```bash
+npm run dev
+# or
+npx serve .
+```
+Open `http://localhost:3000` (or the printed port) in your browser.
 
 ---
 
