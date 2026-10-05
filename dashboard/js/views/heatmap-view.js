@@ -36,16 +36,7 @@ export function renderHeatmapView(containerEl, records, state) {
 
   const handleResize = () => {
     if (chartInstance && containerEl.isConnected) {
-      const updatedDims = calculateHeatmapDimensions(containerEl);
-      containerEl.style.height = `${updatedDims.totalHeight}px`;
-      chartInstance.setOption({
-        grid: {
-          left: updatedDims.computedLeft,
-          width: updatedDims.gridWidth,
-          height: updatedDims.gridHeight,
-        },
-      });
-      chartInstance.resize();
+      renderHeatmapView(containerEl, records, state);
     }
   };
   window.removeEventListener('resize', handleResize);

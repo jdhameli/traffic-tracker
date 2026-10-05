@@ -7,7 +7,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .control-prefix {
@@ -17,13 +20,19 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  flex-shrink: 0;
 }
 
 /* Minimal Custom Select */
 .custom-select-wrapper {
   position: relative;
-  display: inline-flex;
+  display: flex;
+  align-items: center;
+  flex: 1 1 0;
+  min-width: 0;
   max-width: 100%;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .custom-select {
@@ -41,9 +50,13 @@
   cursor: pointer;
   transition: var(--transition-fast);
   min-height: 36px;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   text-overflow: ellipsis;
+  overflow: hidden;
   white-space: nowrap;
+  box-sizing: border-box;
 }
 
 .custom-select:hover {
@@ -72,26 +85,23 @@
 
 /* Direction Segmented Switch */
 .toggle-segmented {
-  display: inline-flex;
+  display: flex;
   background: var(--color-bg-subtle-glass);
   padding: 3px;
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   gap: 2px;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.toggle-segmented::-webkit-scrollbar {
-  display: none;
+  box-sizing: border-box;
 }
 
 .toggle-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 6px 14px;
+  padding: 6px 10px;
   background: transparent;
   color: var(--color-text-secondary);
   border: none;
@@ -101,9 +111,21 @@
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition-fast);
-  white-space: nowrap;
   min-height: 32px;
   user-select: none;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.toggle-btn span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .toggle-btn:hover:not(.active) {
@@ -128,36 +150,47 @@
 
 /* Metric Segmented Chips */
 .metric-chips {
-  display: inline-flex;
+  display: flex;
   background: var(--color-bg-subtle-glass);
   padding: 3px;
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   gap: 2px;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.metric-chips::-webkit-scrollbar {
-  display: none;
+  box-sizing: border-box;
 }
 
 .metric-chip-btn {
-  padding: 6px 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
   background: transparent;
   color: var(--color-text-secondary);
   border: none;
   border-radius: var(--radius-full);
   font-family: var(--font-family-sans);
-  font-size: 0.78rem;
+  font-size: clamp(0.7rem, 2.2vw, 0.78rem);
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition-fast);
-  white-space: nowrap;
   min-height: 32px;
   user-select: none;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.metric-chip-btn span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .metric-chip-btn:hover:not(.active) {
@@ -179,36 +212,47 @@
 
 /* Header View Navigation Tabs */
 .view-tabs {
-  display: inline-flex;
+  display: flex;
   background: var(--color-bg-subtle-glass);
   padding: 3px;
   border-radius: var(--radius-full);
   border: 1px solid var(--color-border);
   gap: 2px;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
-
-.view-tabs::-webkit-scrollbar {
-  display: none;
+  box-sizing: border-box;
 }
 
 .view-tab-btn {
-  padding: 7px 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
   background: transparent;
   color: var(--color-text-secondary);
   border: none;
   border-radius: var(--radius-full);
   font-family: var(--font-family-sans);
-  font-size: 0.8rem;
+  font-size: clamp(0.74rem, 2.4vw, 0.8rem);
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition-fast);
-  white-space: nowrap;
   min-height: 34px;
   user-select: none;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.view-tab-btn span {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
 }
 
 .view-tab-btn:hover:not(.active) {
@@ -232,16 +276,23 @@
 .date-navigator-container {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
+  width: 100%;
+  min-width: 0;
   max-width: 100%;
   flex-wrap: wrap;
 }
 
 .date-nav-controls {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   flex-wrap: wrap;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
 }
 
 .date-nav-btn {
@@ -275,12 +326,16 @@
 .date-current-display {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
   background: var(--color-bg-subtle-glass);
-  padding: 4px 12px;
+  padding: 4px 10px;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
   min-height: 32px;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .date-input {
@@ -296,29 +351,35 @@
 }
 
 .date-weekday-tag, .date-week-tag, .date-month-tag {
-  font-size: 0.78rem;
+  font-size: clamp(0.7rem, 2.2vw, 0.78rem);
   font-weight: 600;
   color: var(--color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .heatmap-mode-toggle-btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 5px;
-  padding: 6px 13px;
+  padding: 6px 12px;
   background: var(--color-bg-subtle-glass);
   color: var(--color-text-secondary);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
   font-family: var(--font-family-sans);
-  font-size: 0.76rem;
+  font-size: clamp(0.72rem, 2.2vw, 0.76rem);
   font-weight: 500;
   cursor: pointer;
   transition: var(--transition-fast);
   min-height: 32px;
   user-select: none;
   white-space: nowrap;
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .heatmap-mode-toggle-btn:hover {
@@ -339,28 +400,36 @@
   box-shadow: var(--shadow-sm);
 }
 
-/* Mobile adjustments */
-@media (max-width: 640px) {
-  .toggle-segmented, .metric-chips, .view-tabs {
-    width: 100%;
+/* ==========================================================================
+   Desktop Rules (min-width: 1120px) — Unconstrained Single-Row Controls
+   ========================================================================== */
+@media (min-width: 1120px) {
+  .control-item {
+    width: auto;
   }
 
-  .toggle-btn, .metric-chip-btn, .view-tab-btn {
-    flex: 1 1 auto;
-    text-align: center;
+  .custom-select-wrapper {
+    width: auto;
+    min-width: 200px;
+    max-width: 300px;
   }
 
-  .custom-select-wrapper, .custom-select {
-    width: 100%;
+  .toggle-segmented,
+  .metric-chips,
+  .view-tabs {
+    width: auto;
   }
 
-  .date-navigator-container {
-    justify-content: center;
-    width: 100%;
+  .toggle-btn,
+  .metric-chip-btn,
+  .view-tab-btn {
+    flex: 0 0 auto;
+    width: auto;
   }
 
+  .date-navigator-container,
   .date-nav-controls {
-    justify-content: center;
-    width: 100%;
+    width: auto;
+    flex-wrap: nowrap;
   }
 }

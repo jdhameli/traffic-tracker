@@ -4,12 +4,15 @@
 
 .app-wrapper {
   max-width: 1400px;
+  width: 100%;
   margin: 0 auto;
-  padding: clamp(10px, 2.5vw, 24px) clamp(12px, 3vw, 28px) clamp(24px, 4vw, 48px);
+  padding: clamp(8px, 2.5vw, 24px) clamp(10px, 3vw, 28px) clamp(24px, 4vw, 48px);
   display: flex;
   flex-direction: column;
   gap: clamp(10px, 1.8vw, 16px);
   min-height: 100vh;
+  box-sizing: border-box;
+  overflow-x: hidden;
 }
 
 /* Header */
@@ -17,9 +20,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
-  flex-wrap: wrap;
   gap: 12px;
-  padding: 10px clamp(12px, 2vw, 20px);
+  padding: 10px clamp(10px, 2vw, 20px);
   background: var(--color-bg-surface-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -27,8 +29,11 @@
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
   position: sticky;
-  top: clamp(8px, 1.5vw, 16px);
+  top: clamp(6px, 1.5vw, 16px);
   z-index: 50;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   transition: var(--transition-normal);
 }
 
@@ -36,6 +41,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  min-width: 0;
+  flex-shrink: 0;
 }
 
 .brand-icon {
@@ -70,6 +77,7 @@
   font-size: 0.7rem;
   font-weight: 600;
   color: var(--color-text-secondary);
+  flex-shrink: 0;
 }
 
 .tz-dot {
@@ -83,45 +91,53 @@
 .header-view-nav {
   display: flex;
   align-items: center;
-  overflow-x: auto;
+  min-width: 0;
   max-width: 100%;
-  scrollbar-width: none;
 }
 
-.header-view-nav::-webkit-scrollbar {
-  display: none;
-}
-
-/* Controls Bar */
+/* Controls Bar — Modern Two-Tier Minimal Card */
 .controls-bar {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
   gap: 12px;
-  padding: 10px clamp(12px, 2vw, 18px);
+  padding: 12px clamp(12px, 2vw, 20px);
   background: var(--color-bg-surface-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   transition: var(--transition-normal);
 }
 
+/* Primary Controls Row: Route, Direction, Metric */
 .controls-left {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
   gap: 10px;
-  flex: 1 1 auto;
+  width: 100%;
+  min-width: 0;
 }
 
+.controls-left > div {
+  width: 100%;
+  min-width: 0;
+}
+
+/* Secondary Controls Row: Date Range & Historical Scope Navigator */
 .controls-right {
   display: flex;
   align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
+  justify-content: center;
+  width: 100%;
+  border-top: 1px solid var(--color-border);
+  padding-top: 10px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 /* Main Chart Surface */
@@ -131,10 +147,13 @@
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  padding: clamp(14px, 2.5vw, 24px);
+  padding: clamp(12px, 2.5vw, 24px);
   box-shadow: var(--shadow-md);
   position: relative;
   overflow: hidden;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   transition: var(--transition-normal);
 }
 
@@ -148,31 +167,28 @@
 }
 
 /* ==========================================================================
-   Responsive Breakpoints
+   Wide View (>= 1120px) — Strict 1-Row Format for Route + Direction + Metric
    ========================================================================== */
-
-/* Tablet & Mobile (< 960px) */
-@media (max-width: 960px) {
-  .controls-bar {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 12px;
-  }
-
+@media (min-width: 1120px) {
   .controls-left {
+    flex-direction: row;
+    align-items: center;
     justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 12px;
+    width: 100%;
   }
 
-  .controls-right {
-    justify-content: flex-start;
-    border-top: 1px solid var(--color-border);
-    padding-top: 10px;
-    width: 100%;
+  .controls-left > div {
+    width: auto;
+    flex: 0 0 auto;
   }
 }
 
-/* Mobile Small (< 640px) */
-@media (max-width: 640px) {
+/* ==========================================================================
+   Mobile Header (< 720px)
+   ========================================================================== */
+@media (max-width: 720px) {
   .app-header {
     flex-direction: column;
     align-items: stretch;
@@ -186,25 +202,10 @@
 
   .header-view-nav {
     width: 100%;
-    justify-content: flex-start;
-  }
-
-  .controls-left {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 10px;
-  }
-
-  .controls-left > * {
-    width: 100%;
-  }
-
-  .controls-right {
-    justify-content: center;
   }
 
   .chart-panel {
     border-radius: var(--radius-lg);
-    padding: 12px 10px;
+    padding: 10px 8px;
   }
 }

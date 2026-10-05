@@ -12,7 +12,7 @@ let chartInstance = null;
 export function renderWeeklyView(containerEl, records, state) {
   const containerWidth = containerEl.parentElement?.clientWidth || containerEl.clientWidth || 960;
   const isMobile = containerWidth < 640;
-  containerEl.style.height = isMobile ? '420px' : '520px';
+  containerEl.style.height = isMobile ? '430px' : '520px';
 
   chartInstance = echarts.getInstanceByDom(containerEl);
   if (!chartInstance) {
@@ -21,10 +21,7 @@ export function renderWeeklyView(containerEl, records, state) {
 
   const handleResize = () => {
     if (chartInstance && containerEl.isConnected) {
-      const cw = containerEl.parentElement?.clientWidth || containerEl.clientWidth || 960;
-      const mob = cw < 640;
-      containerEl.style.height = mob ? '420px' : '520px';
-      chartInstance.resize();
+      renderWeeklyView(containerEl, records, state);
     }
   };
   window.removeEventListener('resize', handleResize);
@@ -54,15 +51,16 @@ export function renderWeeklyView(containerEl, records, state) {
       text: `Weekly ${metricConfig.label} Profile: ${startDate} to ${endDate} (EDT)`,
       subtext: `Daily average ${metricConfig.label} vs. historical weekly median benchmark from prior weeks`,
       left: 'left',
+      top: 0,
       textStyle: {
         color: THEME_COLORS.textPrimary,
-        fontSize: isMobile ? 13 : 15,
+        fontSize: isMobile ? 12 : 15,
         fontWeight: 600,
         fontFamily: 'Inter, sans-serif',
       },
       subtextStyle: {
         color: THEME_COLORS.textMuted,
-        fontSize: isMobile ? 11 : 12,
+        fontSize: isMobile ? 10 : 12,
       },
     },
     tooltip: {
@@ -120,25 +118,26 @@ export function renderWeeklyView(containerEl, records, state) {
       },
     },
     legend: {
-      top: isMobile ? 48 : 30,
-      right: isMobile ? 'auto' : 20,
-      left: isMobile ? 'left' : 'auto',
-      textStyle: { color: THEME_COLORS.textSecondary, fontSize: isMobile ? 10 : 12 },
+      bottom: isMobile ? 4 : 8,
+      left: 'center',
+      orient: 'horizontal',
+      itemGap: isMobile ? 12 : 24,
+      textStyle: { color: THEME_COLORS.textSecondary, fontSize: isMobile ? 10 : 11 },
       data: [
         `Weekly Avg ${metricConfig.label}`,
         'Historical Weekly Median',
       ],
     },
     grid: {
-      top: isMobile ? 95 : 75,
-      bottom: isMobile ? 40 : 50,
-      left: isMobile ? 44 : 65,
-      right: isMobile ? 18 : 40,
+      top: isMobile ? 60 : 65,
+      bottom: isMobile ? 55 : 50,
+      left: isMobile ? 42 : 65,
+      right: isMobile ? 16 : 35,
     },
     xAxis: {
       type: 'category',
       data: dayLabels,
-      axisLabel: { color: THEME_COLORS.textSecondary, fontSize: 11 },
+      axisLabel: { color: THEME_COLORS.textSecondary, fontSize: isMobile ? 10 : 11 },
       axisLine: { lineStyle: { color: THEME_COLORS.border } },
     },
     yAxis: {
@@ -162,7 +161,7 @@ export function renderWeeklyView(containerEl, records, state) {
         smooth: true,
         showSymbol: true,
         symbol: 'circle',
-        symbolSize: 8,
+        symbolSize: isMobile ? 7 : 8,
         itemStyle: {
           color: THEME_COLORS.primary,
           borderWidth: 2,
@@ -183,7 +182,7 @@ export function renderWeeklyView(containerEl, records, state) {
         smooth: true,
         showSymbol: true,
         symbol: 'emptyCircle',
-        symbolSize: 6,
+        symbolSize: isMobile ? 5 : 6,
         lineStyle: { width: 2, color: THEME_COLORS.median, type: 'dashed' },
         itemStyle: { color: THEME_COLORS.median },
       },

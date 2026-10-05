@@ -26,7 +26,7 @@ export function initViewNav(containerEl, onSelectView) {
             aria-selected="${v.id === selectedView}"
             data-view="${v.id}"
           >
-            ${v.label}
+            <span>${v.label}</span>
           </button>
         `
         ).join('')}
