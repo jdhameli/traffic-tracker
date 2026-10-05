@@ -1,0 +1,40 @@
+name: Traffic Tracker Check
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  track-traffic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Run Traffic Tracker
+        env:
+          TOMTOM_API_KEY: ${{ secrets.TOMTOM_API_KEY }}
+        run: |
+          npm run track
+
+      - name: Commit and Push Traffic Data
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add data/
+          if git diff --staged --quiet; then
+            echo "No traffic data changes to commit."
+          else
+            git commit -m "chore(data): record traffic observations [skip ci]"
+            git pull --rebase origin main || true
+            git push
+          fi

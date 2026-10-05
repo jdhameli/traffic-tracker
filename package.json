@@ -1,0 +1,21 @@
+{
+  "name": "traffic-tracker",
+  "version": "1.0.0",
+  "description": "Automated traffic tracker using TomTom Routing APIs and GitHub Actions",
+  "main": "src/tracker.js",
+  "type": "module",
+  "scripts": {
+    "start": "node src/tracker.js",
+    "track": "node src/tracker.js",
+    "test": "node --test tests/**/*.test.js"
+  },
+  "keywords": [
+    "traffic",
+    "tomtom",
+    "github-actions",
+    "commute",
+    "tracker"
+  ],
+  "author": "",
+  "license": "MIT"
+}

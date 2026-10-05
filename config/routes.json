@@ -1,0 +1,32 @@
+[
+  {
+    "routeId": "ROUTE_01",
+    "locationA": "LOC_01",
+    "locationB": "LOC_02",
+    "enabled": true
+  },
+  {
+    "routeId": "ROUTE_02",
+    "locationA": "LOC_01",
+    "locationB": "LOC_03",
+    "enabled": true
+  },
+  {
+    "routeId": "ROUTE_03",
+    "locationA": "LOC_02",
+    "locationB": "LOC_03",
+    "enabled": true
+  },
+  {
+    "routeId": "ROUTE_04",
+    "locationA": "LOC_01",
+    "locationB": "LOC_04",
+    "enabled": true
+  },
+  {
+    "routeId": "ROUTE_05",
+    "locationA": "LOC_01",
+    "locationB": "LOC_05",
+    "enabled": true
+  }
+]
