@@ -1,8 +1,6 @@
 name: Traffic Tracker Check
 
 on:
-  schedule:
-    - cron: '18,48 * * * *'
   workflow_dispatch:
 
 permissions:

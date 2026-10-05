@@ -2,7 +2,7 @@
 
 An automated traffic tracker powered by **Node.js**, **TomTom Routing API**, and **GitHub Actions**.
 
-Every 30 minutes, the GitHub Actions workflow queries real-time travel durations and traffic delays for configured route pairs bidirectionally ($A \rightarrow B$ and $B \rightarrow A$). The observations are committed and archived directly into monthly CSV files organized by route.
+The workflow queries real-time travel durations and traffic delays for configured route pairs bidirectionally ($A \rightarrow B$ and $B \rightarrow A$). The observations are automatically committed and archived directly into monthly CSV files organized by route.
 
 ---
 
@@ -12,7 +12,7 @@ Every 30 minutes, the GitHub Actions workflow queries real-time travel durations
 traffic-tracker/
 ├── .github/
 │   └── workflows/
-│       └── traffic_tracker.yml   # Scheduled workflow (runs every 30 minutes)
+│       └── traffic_tracker.yml   # Automation workflow
 ├── config/
 │   ├── locations.json            # Location coordinates (lat/lon)
 │   └── routes.json               # Route definitions and pair mappings
