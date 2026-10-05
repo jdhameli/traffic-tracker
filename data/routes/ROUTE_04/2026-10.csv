@@ -1,3 +1,5 @@
 timestamp,route_id,direction,origin_id,origin_name,destination_id,destination_name,distance_km,travel_time_min,traffic_delay_min,baseline_time_min,status,error_message
 2026-10-05T00:23:58.766Z,ROUTE_04,forward,LOC_01,Location 1,LOC_04,Location 4,38.3,29.37,0,29.37,OK,
 2026-10-05T00:23:59.235Z,ROUTE_04,reverse,LOC_04,Location 4,LOC_01,Location 1,40.61,32.43,0,32.43,OK,
+2026-10-05T02:11:19.851Z,ROUTE_04,forward,LOC_01,Location 1,LOC_04,Location 4,36.59,34.15,1.48,32.67,OK,
+2026-10-05T02:11:20.353Z,ROUTE_04,reverse,LOC_04,Location 4,LOC_01,Location 1,40.61,31.52,0,31.52,OK,
