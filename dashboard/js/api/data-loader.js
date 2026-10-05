@@ -111,11 +111,12 @@ export async function loadRouteData(routeId, forceReload = false) {
   const allRecords = [];
   const availableMonths = [];
 
-  // Fetch candidate monthly CSVs in parallel batches
+  // Fetch candidate monthly CSVs in parallel batches with cache-busting
+  const timestamp = Date.now();
   const fetchPromises = candidateMonths.map(async (month) => {
-    const url = `./data/routes/${routeId}/${month}.csv`;
+    const url = `./data/routes/${routeId}/${month}.csv?_t=${timestamp}`;
     try {
-      const res = await fetch(url);
+      const res = await fetch(url, { cache: 'no-cache' });
       if (res.ok) {
         const text = await res.text();
         const records = parseCsvRecords(text);
