@@ -389,3 +389,5 @@ timestamp,route_id,direction,origin_id,origin_name,destination_id,destination_na
 2026-10-09T17:30:26.119Z,ROUTE_05,reverse,LOC_05,Location 5,LOC_01,Location 1,40.1,43.08,0,43.08,OK,
 2026-10-09T18:00:30.546Z,ROUTE_05,forward,LOC_01,Location 1,LOC_05,Location 5,38.97,48.97,6.8,42.17,OK,
 2026-10-09T18:00:31.119Z,ROUTE_05,reverse,LOC_05,Location 5,LOC_01,Location 1,40.1,49.93,5.57,44.37,OK,
+2026-10-09T18:30:23.194Z,ROUTE_05,forward,LOC_01,Location 1,LOC_05,Location 5,38.97,56.45,16.07,40.38,OK,
+2026-10-09T18:30:23.786Z,ROUTE_05,reverse,LOC_05,Location 5,LOC_01,Location 1,39.26,56,4.83,51.17,OK,
