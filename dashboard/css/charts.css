@@ -2,12 +2,87 @@
    Modern Minimal Light Theme Chart Styles
    ========================================================================== */
 
+/* Responsive Decoupled HTML Chart Header (Zero Canvas Collision) */
+.chart-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 12px;
+  width: 100%;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+}
+
+.chart-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 260px;
+}
+
+.chart-title-text {
+  font-size: clamp(0.96rem, 1.8vw, 1.15rem);
+  font-weight: 600;
+  color: var(--color-text-primary);
+  margin: 0;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  word-break: break-word;
+}
+
+.chart-subtitle-text {
+  font-size: clamp(0.76rem, 1.2vw, 0.84rem);
+  color: var(--color-text-muted);
+  margin: 0;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.chart-header-meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+}
+
+.chart-meta-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+
+.chart-meta-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  box-shadow: 0 0 6px var(--color-primary-glow);
+}
+
 #chart-container {
   width: 100%;
   min-height: 280px;
 }
 
 @media (max-width: 640px) {
+  .chart-header-row {
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+
   #chart-container {
     min-height: 260px;
   }

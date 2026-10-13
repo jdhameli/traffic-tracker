@@ -7,6 +7,7 @@ import { buildHeatmapMatrix } from '../utils/stats-engine.js';
 import { DAYS_OF_WEEK, TIME_SLOTS_30MIN, formatTimeSlot, getWeekRangeEDT } from '../utils/time-utils.js';
 import { METRIC_CONFIGS, formatMetricValue } from '../utils/metric-utils.js';
 import { THEME_COLORS } from '../utils/theme-constants.js';
+import { updateChartHeader } from '../utils/chart-header.js';
 
 let chartInstance = null;
 
@@ -19,7 +20,7 @@ function calculateHeatmapDimensions(containerEl) {
   const cellSize = Math.max(Math.floor(availableWidth / 48), 6);
   const gridWidth = cellSize * 48;
   const gridHeight = cellSize * 7;
-  const totalHeight = gridHeight + (isMobile ? 170 : 190);
+  const totalHeight = gridHeight + (isMobile ? 125 : 140);
   const computedLeft = Math.max(leftMargin, Math.floor((containerWidth - gridWidth) / 2));
 
   return { cellSize, gridWidth, gridHeight, totalHeight, computedLeft, isMobile, containerWidth };
@@ -102,26 +103,19 @@ export function renderHeatmapView(containerEl, records, state) {
     ? `All-Time Historical Median • Day of Week vs. 30-Min Intervals (EDT)`
     : `Week of ${startDate} – ${endDate} (EDT) • Day of Week vs. 30-Min Intervals`;
 
+  // Update decoupled responsive HTML header (eliminates text collisions across all layouts)
+  updateChartHeader({
+    title: `${metricConfig.label} Heatmap (EDT)`,
+    subtitle: subtitleText,
+    unit: metricConfig.unit,
+    metricLabel: metricConfig.label,
+  });
+
   // Determine legible step intervals for X-axis labels
   const step = dims.isMobile ? 12 : dims.containerWidth < 960 ? 6 : 4;
 
   const option = {
     backgroundColor: 'transparent',
-    title: {
-      text: `${metricConfig.label} Heatmap (EDT)`,
-      subtext: subtitleText,
-      left: 'left',
-      textStyle: {
-        color: THEME_COLORS.textPrimary,
-        fontSize: dims.isMobile ? 13 : 15,
-        fontWeight: 600,
-        fontFamily: 'Inter, sans-serif',
-      },
-      subtextStyle: {
-        color: THEME_COLORS.textMuted,
-        fontSize: dims.isMobile ? 11 : 12,
-      },
-    },
     tooltip: {
       position: 'top',
       backgroundColor: THEME_COLORS.bgSurface,
@@ -167,7 +161,7 @@ export function renderHeatmapView(containerEl, records, state) {
       },
     },
     grid: {
-      top: 65,
+      top: dims.isMobile ? 15 : 20,
       left: dims.computedLeft,
       width: dims.gridWidth,
       height: dims.gridHeight,

@@ -7,6 +7,7 @@ import { computeDailyViewData } from '../utils/stats-engine.js';
 import { METRIC_CONFIGS, formatMetricValue, getMetricValue } from '../utils/metric-utils.js';
 import { minutesToTimeLabel, timeToMinutes } from '../utils/time-utils.js';
 import { THEME_COLORS } from '../utils/theme-constants.js';
+import { updateChartHeader } from '../utils/chart-header.js';
 
 let chartInstance = null;
 
@@ -31,6 +32,14 @@ export function renderDailyView(containerEl, records, state) {
   const selectedDate = state.selectedDate;
   const metricKey = state.selectedMetric || 'travel_time_min';
   const metricConfig = METRIC_CONFIGS[metricKey] || METRIC_CONFIGS.travel_time_min;
+
+  // Update decoupled responsive HTML header (eliminates text collisions across all layouts)
+  updateChartHeader({
+    title: `Daily ${metricConfig.label} Profile: ${selectedDate} (EDT)`,
+    subtitle: 'Observed points vs. historical median baseline across 24-hour EDT day',
+    unit: metricConfig.unit,
+    metricLabel: metricConfig.label,
+  });
 
   const dailyData = computeDailyViewData(records, selectedDate, metricKey);
   const { dayRecords, hourlyMedianBaseline, hasPriorData } = dailyData;
@@ -69,22 +78,6 @@ export function renderDailyView(containerEl, records, state) {
 
   const option = {
     backgroundColor: 'transparent',
-    title: {
-      text: `Daily ${metricConfig.label} Profile: ${selectedDate} (EDT)`,
-      subtext: `Observed points vs. historical median baseline across 24-hour EDT day`,
-      left: 'left',
-      top: 0,
-      textStyle: {
-        color: THEME_COLORS.textPrimary,
-        fontSize: isMobile ? 12 : 15,
-        fontWeight: 600,
-        fontFamily: 'Inter, sans-serif',
-      },
-      subtextStyle: {
-        color: THEME_COLORS.textMuted,
-        fontSize: isMobile ? 10 : 12,
-      },
-    },
     tooltip: {
       trigger: 'item',
       backgroundColor: THEME_COLORS.bgSurface,
@@ -143,10 +136,11 @@ export function renderDailyView(containerEl, records, state) {
       ],
     },
     grid: {
-      top: isMobile ? 60 : 65,
+      top: isMobile ? 22 : 28,
       bottom: isMobile ? 55 : 50,
-      left: isMobile ? 42 : 65,
-      right: isMobile ? 16 : 35,
+      left: isMobile ? 38 : 50,
+      right: isMobile ? 16 : 28,
+      containLabel: true,
     },
     xAxis: {
       type: 'value',
@@ -175,8 +169,14 @@ export function renderDailyView(containerEl, records, state) {
       type: 'value',
       min: 0,
       max: yUpper,
-      name: `${metricConfig.label} (${metricConfig.unit})`,
-      nameTextStyle: { color: THEME_COLORS.textMuted, fontSize: 11, padding: [0, 0, 0, 20] },
+      name: metricConfig.unit,
+      nameLocation: 'end',
+      nameTextStyle: {
+        color: THEME_COLORS.textMuted,
+        fontSize: 11,
+        align: 'right',
+        padding: [0, 4, 4, 0],
+      },
       axisLabel: {
         color: THEME_COLORS.textMuted,
         formatter: (val) => `${val}${metricConfig.shortUnit}`,

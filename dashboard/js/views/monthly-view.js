@@ -6,6 +6,7 @@
 import { computeMonthlyViewData } from '../utils/stats-engine.js';
 import { METRIC_CONFIGS, formatMetricValue } from '../utils/metric-utils.js';
 import { THEME_COLORS } from '../utils/theme-constants.js';
+import { updateChartHeader } from '../utils/chart-header.js';
 
 let chartInstance = null;
 
@@ -31,6 +32,14 @@ export function renderMonthlyView(containerEl, records, state) {
   const metricKey = state.selectedMetric || 'travel_time_min';
   const metricConfig = METRIC_CONFIGS[metricKey] || METRIC_CONFIGS.travel_time_min;
 
+  // Update decoupled responsive HTML header (eliminates text collisions across all layouts)
+  updateChartHeader({
+    title: `Monthly ${metricConfig.label} Overview: ${targetMonth} (EDT)`,
+    subtitle: `Daily ${metricConfig.label} progression compared to historical monthly median`,
+    unit: metricConfig.unit,
+    metricLabel: metricConfig.label,
+  });
+
   const monthlyData = computeMonthlyViewData(records, targetMonth, metricKey);
   const { daysData, daysInMonth, monthlyMedianBaseline } = monthlyData;
 
@@ -41,22 +50,6 @@ export function renderMonthlyView(containerEl, records, state) {
 
   const option = {
     backgroundColor: 'transparent',
-    title: {
-      text: `Monthly ${metricConfig.label} Overview: ${targetMonth} (EDT)`,
-      subtext: `Daily ${metricConfig.label} progression compared to historical monthly median`,
-      left: 'left',
-      top: 0,
-      textStyle: {
-        color: THEME_COLORS.textPrimary,
-        fontSize: isMobile ? 12 : 15,
-        fontWeight: 600,
-        fontFamily: 'Inter, sans-serif',
-      },
-      subtextStyle: {
-        color: THEME_COLORS.textMuted,
-        fontSize: isMobile ? 10 : 12,
-      },
-    },
     tooltip: {
       trigger: 'axis',
       backgroundColor: THEME_COLORS.bgSurface,
@@ -118,10 +111,11 @@ export function renderMonthlyView(containerEl, records, state) {
       ],
     },
     grid: {
-      top: isMobile ? 60 : 65,
+      top: isMobile ? 22 : 28,
       bottom: isMobile ? 55 : 50,
-      left: isMobile ? 42 : 65,
-      right: isMobile ? 16 : 35,
+      left: isMobile ? 38 : 50,
+      right: isMobile ? 16 : 28,
+      containLabel: true,
     },
     xAxis: {
       type: 'category',
@@ -136,8 +130,14 @@ export function renderMonthlyView(containerEl, records, state) {
     },
     yAxis: {
       type: 'value',
-      name: `${metricConfig.label} (${metricConfig.unit})`,
-      nameTextStyle: { color: THEME_COLORS.textMuted, fontSize: 11, padding: [0, 0, 0, 20] },
+      name: metricConfig.unit,
+      nameLocation: 'end',
+      nameTextStyle: {
+        color: THEME_COLORS.textMuted,
+        fontSize: 11,
+        align: 'right',
+        padding: [0, 4, 4, 0],
+      },
       axisLabel: {
         color: THEME_COLORS.textMuted,
         formatter: (val) => `${val}${metricConfig.shortUnit}`,

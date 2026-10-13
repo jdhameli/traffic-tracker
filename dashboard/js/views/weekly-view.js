@@ -6,6 +6,7 @@
 import { computeWeeklyViewData } from '../utils/stats-engine.js';
 import { METRIC_CONFIGS, formatMetricValue } from '../utils/metric-utils.js';
 import { THEME_COLORS } from '../utils/theme-constants.js';
+import { updateChartHeader } from '../utils/chart-header.js';
 
 let chartInstance = null;
 
@@ -34,6 +35,14 @@ export function renderWeeklyView(containerEl, records, state) {
   const weeklyData = computeWeeklyViewData(records, selectedDate, metricKey);
   const { startDate, endDate, weekDaysData, weeklyMedianBaseline } = weeklyData;
 
+  // Update decoupled responsive HTML header (eliminates text collisions across all layouts)
+  updateChartHeader({
+    title: `Weekly ${metricConfig.label} Profile: ${startDate} to ${endDate} (EDT)`,
+    subtitle: `Daily average ${metricConfig.label} vs. historical weekly median benchmark from prior weeks`,
+    unit: metricConfig.unit,
+    metricLabel: metricConfig.label,
+  });
+
   const dayLabels = weekDaysData.map((d) => (isMobile ? d.dayName : `${d.dayName}\n${d.dateStr.substring(5)}`));
   const actualAvgVals = weekDaysData.map((d) => (d.count > 0 ? d.avgValue : null));
   const medianWeeklyBaseline = weeklyMedianBaseline.map((b) => b.medianValue);
@@ -47,22 +56,6 @@ export function renderWeeklyView(containerEl, records, state) {
 
   const option = {
     backgroundColor: 'transparent',
-    title: {
-      text: `Weekly ${metricConfig.label} Profile: ${startDate} to ${endDate} (EDT)`,
-      subtext: `Daily average ${metricConfig.label} vs. historical weekly median benchmark from prior weeks`,
-      left: 'left',
-      top: 0,
-      textStyle: {
-        color: THEME_COLORS.textPrimary,
-        fontSize: isMobile ? 12 : 15,
-        fontWeight: 600,
-        fontFamily: 'Inter, sans-serif',
-      },
-      subtextStyle: {
-        color: THEME_COLORS.textMuted,
-        fontSize: isMobile ? 10 : 12,
-      },
-    },
     tooltip: {
       trigger: 'axis',
       backgroundColor: THEME_COLORS.bgSurface,
@@ -129,10 +122,11 @@ export function renderWeeklyView(containerEl, records, state) {
       ],
     },
     grid: {
-      top: isMobile ? 60 : 65,
+      top: isMobile ? 22 : 28,
       bottom: isMobile ? 55 : 50,
-      left: isMobile ? 42 : 65,
-      right: isMobile ? 16 : 35,
+      left: isMobile ? 38 : 50,
+      right: isMobile ? 16 : 28,
+      containLabel: true,
     },
     xAxis: {
       type: 'category',
@@ -144,8 +138,14 @@ export function renderWeeklyView(containerEl, records, state) {
       type: 'value',
       min: 0,
       max: yUpper,
-      name: `${metricConfig.label} (${metricConfig.unit})`,
-      nameTextStyle: { color: THEME_COLORS.textMuted, fontSize: 11, padding: [0, 0, 0, 20] },
+      name: metricConfig.unit,
+      nameLocation: 'end',
+      nameTextStyle: {
+        color: THEME_COLORS.textMuted,
+        fontSize: 11,
+        align: 'right',
+        padding: [0, 4, 4, 0],
+      },
       axisLabel: {
         color: THEME_COLORS.textMuted,
         formatter: (val) => `${val}${metricConfig.shortUnit}`,
