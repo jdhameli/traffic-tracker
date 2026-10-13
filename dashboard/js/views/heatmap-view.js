@@ -4,29 +4,37 @@
  */
 
 import { buildHeatmapMatrix } from '../utils/stats-engine.js';
-import { DAYS_OF_WEEK, TIME_SLOTS_30MIN, formatTimeSlot, getWeekRangeEDT } from '../utils/time-utils.js';
+import { DAYS_OF_WEEK, TIME_SLOTS_30MIN, formatTimeSlot, getRollingWeekRangeEDT } from '../utils/time-utils.js';
 import { METRIC_CONFIGS, formatMetricValue } from '../utils/metric-utils.js';
 import { THEME_COLORS } from '../utils/theme-constants.js';
 import { updateChartHeader } from '../utils/chart-header.js';
+import { getSafeContainerWidth, getClampedTooltipPosition } from '../utils/chart-helpers.js';
 
 let chartInstance = null;
+let currentCallbacks = null;
 
 function calculateHeatmapDimensions(containerEl) {
-  const containerWidth = containerEl.parentElement?.clientWidth || containerEl.clientWidth || 960;
+  const containerWidth = getSafeContainerWidth(containerEl);
   const isMobile = containerWidth < 640;
-  const leftMargin = isMobile ? 38 : 55;
-  const rightMargin = isMobile ? 12 : 25;
-  const availableWidth = Math.max(containerWidth - leftMargin - rightMargin, 48 * 8);
+  const leftMargin = isMobile ? 42 : 64; // Generous left margin to accommodate date labels
+  const rightMargin = isMobile ? 18 : 32; // Generous safe margin so rightmost column is NEVER cut off
+  const availableWidth = Math.max(containerWidth - leftMargin - rightMargin, 48 * 6);
   const cellSize = Math.max(Math.floor(availableWidth / 48), 6);
   const gridWidth = cellSize * 48;
   const gridHeight = cellSize * 7;
   const totalHeight = gridHeight + (isMobile ? 125 : 140);
-  const computedLeft = Math.max(leftMargin, Math.floor((containerWidth - gridWidth) / 2));
+  // Guarantee right edge safety: computedLeft + gridWidth <= containerWidth - rightMargin
+  const maxLeft = Math.max(leftMargin, containerWidth - gridWidth - rightMargin);
+  const computedLeft = Math.max(leftMargin, Math.min(maxLeft, Math.floor((containerWidth - gridWidth) / 2)));
 
   return { cellSize, gridWidth, gridHeight, totalHeight, computedLeft, isMobile, containerWidth };
 }
 
-export function renderHeatmapView(containerEl, records, state) {
+export function renderHeatmapView(containerEl, records, state, callbacks = {}) {
+  currentCallbacks = callbacks;
+  // Apply height first so scrollbar appearance doesn't throw off clientWidth
+  const prelimDims = calculateHeatmapDimensions(containerEl);
+  containerEl.style.height = `${prelimDims.totalHeight}px`;
   const dims = calculateHeatmapDimensions(containerEl);
   containerEl.style.height = `${dims.totalHeight}px`;
 
@@ -37,7 +45,7 @@ export function renderHeatmapView(containerEl, records, state) {
 
   const handleResize = () => {
     if (chartInstance && containerEl.isConnected) {
-      renderHeatmapView(containerEl, records, state);
+      renderHeatmapView(containerEl, records, state, callbacks);
     }
   };
   window.removeEventListener('resize', handleResize);
@@ -47,7 +55,15 @@ export function renderHeatmapView(containerEl, records, state) {
   const metricConfig = METRIC_CONFIGS[metricKey] || METRIC_CONFIGS.travel_time_min;
   const useMedian = !!state.heatmapUseMedian;
 
-  const { startDate, endDate, days } = getWeekRangeEDT(state.selectedDate || '2026-10-05');
+  const { startDate, endDate, days } = getRollingWeekRangeEDT(state.selectedDate || '2026-10-04');
+  const dayLabels = useMedian
+    ? DAYS_OF_WEEK
+    : days.map((dateStr) => {
+        const [y, m, d] = dateStr.split('-').map(Number);
+        const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+        const dayName = DAYS_OF_WEEK[dt.getUTCDay()];
+        return `${dayName} ${dateStr.substring(5)}`;
+      });
 
   if (!records || records.length === 0) {
     chartInstance.clear();
@@ -68,8 +84,9 @@ export function renderHeatmapView(containerEl, records, state) {
   });
   const slotLabels = TIME_SLOTS_30MIN.map((s) => s.fullLabel);
 
-  const observedCells = matrixData.filter((d) => d[3] > 0);
-  const observedVals = observedCells.map((d) => d[2]);
+  // Filter ONLY recorded slots (unrecorded slots are left completely blank)
+  const observedMatrixData = matrixData.filter(([s, d, displayVal, count]) => count > 0 && displayVal !== null);
+  const observedVals = observedMatrixData.map((d) => d[2]);
 
   let minScale = 0;
   let maxScale = 2;
@@ -94,18 +111,13 @@ export function renderHeatmapView(containerEl, records, state) {
     }
   }
 
-  const formattedMatrixData = matrixData.map(([s, d, displayVal, count, medVal, avgVal]) => {
-    const visualVal = count === 0 ? null : displayVal;
-    return [s, d, visualVal, count, medVal, avgVal, displayVal];
-  });
-
   const subtitleText = useMedian
     ? `All-Time Historical Median • Day of Week vs. 30-Min Intervals (EDT)`
-    : `Week of ${startDate} – ${endDate} (EDT) • Day of Week vs. 30-Min Intervals`;
+    : `7-Day Commute Window: ${startDate} – ${endDate} (EDT) • 30-Min Intervals • Click any reading to inspect Daily View`;
 
   // Update decoupled responsive HTML header (eliminates text collisions across all layouts)
   updateChartHeader({
-    title: `${metricConfig.label} Heatmap (EDT)`,
+    title: `Weekly ${metricConfig.label} Heatmap (EDT)`,
     subtitle: subtitleText,
     unit: metricConfig.unit,
     metricLabel: metricConfig.label,
@@ -117,7 +129,8 @@ export function renderHeatmapView(containerEl, records, state) {
   const option = {
     backgroundColor: 'transparent',
     tooltip: {
-      position: 'top',
+      confine: true,
+      position: getClampedTooltipPosition,
       backgroundColor: THEME_COLORS.bgSurface,
       borderColor: THEME_COLORS.border,
       borderWidth: 1,
@@ -126,26 +139,20 @@ export function renderHeatmapView(containerEl, records, state) {
         color: THEME_COLORS.textPrimary,
         fontSize: 12,
       },
-      extraCssText: 'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border-radius: 8px;',
+      extraCssText: 'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border-radius: 8px; z-index: 9999; pointer-events: none;',
       formatter: function (params) {
-        const [slotIdx, dayIdx, , count, medVal, avgVal, displayVal] = params.data;
-        const dayName = DAYS_OF_WEEK[dayIdx];
+        if (!params || !params.data) return '';
+        const dayLabel = dayLabels[dayIdx] || DAYS_OF_WEEK[dayIdx];
         const timeLabel = formatTimeSlot(slotIdx);
-
-        if (count === 0) {
-          return `
-            <div style="font-weight:600;margin-bottom:4px;color:${THEME_COLORS.textPrimary};">${dayName} at ${timeLabel} EDT</div>
-            <div style="color:${THEME_COLORS.textMuted};font-size:0.8rem;">No recorded observations</div>
-          `;
-        }
+        const dayDate = days && days[dayIdx] ? days[dayIdx] : '';
 
         return `
           <div style="font-weight:600;border-bottom:1px solid ${THEME_COLORS.borderSplit};padding-bottom:4px;margin-bottom:6px;color:${THEME_COLORS.textPrimary};">
-            ${dayName} at ${timeLabel} (EDT)
+            ${dayDate ? `${dayDate} (${dayLabel})` : dayLabel} at ${timeLabel} (EDT)
           </div>
           <div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0;">
             <span style="color:${THEME_COLORS.textSecondary};">${useMedian ? 'Median' : 'Avg'} ${metricConfig.label}:</span>
-            <strong style="color:${THEME_COLORS.primary};">
+            <strong style="color:${THEME_COLORS.primary}; font-size:1.05rem;">
               ${formatMetricValue(displayVal, metricKey, true)}
             </strong>
           </div>
@@ -153,10 +160,17 @@ export function renderHeatmapView(containerEl, records, state) {
             <span style="color:${THEME_COLORS.textSecondary};">${useMedian ? 'Avg' : 'Median'} ${metricConfig.label}:</span>
             <strong style="color:${THEME_COLORS.textPrimary};">${formatMetricValue(useMedian ? avgVal : medVal, metricKey)}</strong>
           </div>
-          <div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0;font-size:0.8rem;color:${THEME_COLORS.textSecondary};">
+          <div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0;font-size:0.8rem;color:${THEME_COLORS.textMuted};">
             <span>Sample Count:</span>
             <span style="color:${THEME_COLORS.textPrimary};font-weight:500;">${count} observations</span>
           </div>
+          ${
+            !useMedian && dayDate
+              ? `<div style="margin-top:6px;padding-top:4px;border-top:1px dashed ${THEME_COLORS.border};color:${THEME_COLORS.primary};font-size:0.75rem;font-weight:500;">
+                  👉 Click to open Daily View for ${dayDate}
+                </div>`
+              : ''
+          }
         `;
       },
     },
@@ -169,12 +183,8 @@ export function renderHeatmapView(containerEl, records, state) {
     xAxis: {
       type: 'category',
       data: slotLabels,
-      splitArea: {
-        show: true,
-        areaStyle: {
-          color: [THEME_COLORS.bgSubtle, THEME_COLORS.bgSurface],
-        },
-      },
+      splitArea: { show: false },
+      splitLine: { show: false },
       axisLabel: {
         color: THEME_COLORS.textMuted,
         fontSize: dims.isMobile ? 9 : 10,
@@ -189,8 +199,9 @@ export function renderHeatmapView(containerEl, records, state) {
     },
     yAxis: {
       type: 'category',
-      data: DAYS_OF_WEEK,
-      splitArea: { show: true },
+      data: dayLabels,
+      splitArea: { show: false },
+      splitLine: { show: false },
       axisLabel: {
         color: THEME_COLORS.textSecondary,
         fontSize: dims.isMobile ? 10 : 12,
@@ -199,6 +210,7 @@ export function renderHeatmapView(containerEl, records, state) {
       axisLine: { lineStyle: { color: THEME_COLORS.border } },
     },
     visualMap: {
+      dimension: 2, // Explicitly evaluate displayVal at index 2
       min: minScale,
       max: maxScale,
       calculable: true,
@@ -223,7 +235,7 @@ export function renderHeatmapView(containerEl, records, state) {
       {
         name: metricConfig.label,
         type: 'heatmap',
-        data: formattedMatrixData,
+        data: observedMatrixData, // ONLY observed readings are drawn; unrecorded slots are completely blank
         label: { show: false },
         itemStyle: {
           borderColor: THEME_COLORS.bgSurface,
@@ -244,6 +256,17 @@ export function renderHeatmapView(containerEl, records, state) {
 
   chartInstance.setOption(option, true);
   chartInstance.resize();
+
+  // Attach click listener to drill down into Daily View
+  chartInstance.off('click');
+  chartInstance.on('click', (params) => {
+    if (!params || !params.data) return;
+    const dayIdx = params.data[1];
+    const clickedDate = days && days[dayIdx] ? days[dayIdx] : null;
+    if (clickedDate && currentCallbacks && typeof currentCallbacks.onSelectDate === 'function') {
+      currentCallbacks.onSelectDate(clickedDate);
+    }
+  });
 }
 
 export function disposeHeatmapChart() {

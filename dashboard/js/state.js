@@ -10,10 +10,16 @@ class DashboardState {
       selectedRouteId: null,
       selectedDirection: 'forward', // 'forward' or 'reverse'
       selectedMetric: 'travel_time_min', // 'travel_time_min' | 'traffic_delay_min' | 'baseline_time_min' | 'distance_mi'
-      selectedView: 'heatmap', // 'heatmap' | 'daily' | 'weekly' | 'monthly'
-      heatmapUseMedian: false, // if true, show all-time median heatmap profile
+      selectedView: 'heatmap', // 'heatmap' | 'daily' | 'monthly_heatmap' | 'yearly_heatmap'
+      heatmapUseMedian: false, // if true, show all-time median weekly heatmap profile
+      monthlyUseMedian: false, // if true, show all-time median monthly heatmap profile
+      yearlyUseMedian: false, // if true, show all-time median yearly heatmap profile
       selectedDate: null, // 'YYYY-MM-DD' in EDT
       selectedMonth: null, // 'YYYY-MM' in EDT
+      selectedYear: null, // 'YYYY' in EDT
+      monthlyHeatmapMode: 'matrix', // 'matrix' (Day x Hour) or 'calendar'
+      yearlyHeatmapMode: 'calendar', // 'calendar' (365-day) or 'seasonal' (Month x Hour)
+      yearlyHeatmapMetricType: 'avg', // 'avg' or 'peak'
       routeData: null, // Cached route records object
       isLoading: false,
       error: null,

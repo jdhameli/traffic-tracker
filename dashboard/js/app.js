@@ -12,8 +12,8 @@ import { initViewNav } from './components/view-nav.js';
 import { initDatePicker } from './components/date-picker.js';
 import { renderHeatmapView, disposeHeatmapChart } from './views/heatmap-view.js';
 import { renderDailyView, disposeDailyChart } from './views/daily-view.js';
-import { renderWeeklyView, disposeWeeklyChart } from './views/weekly-view.js';
-import { renderMonthlyView, disposeMonthlyChart } from './views/monthly-view.js';
+import { renderMonthlyHeatmapView, disposeMonthlyHeatmapChart } from './views/monthly-heatmap-view.js';
+import { renderYearlyHeatmapView, disposeYearlyHeatmapChart } from './views/yearly-heatmap-view.js';
 import { parseToEDT } from './utils/time-utils.js';
 
 let chartContainerEl = null;
@@ -29,11 +29,13 @@ async function switchRoute(routeId) {
       : parseToEDT(new Date()).edtDateStr;
 
     let defaultMonth = defaultDate.substring(0, 7);
+    let defaultYear = defaultDate.substring(0, 4);
 
     stateStore.setState({
       routeData,
       selectedDate: defaultDate,
       selectedMonth: defaultMonth,
+      selectedYear: defaultYear,
       isLoading: false,
     });
 
@@ -64,8 +66,8 @@ function switchView(viewId) {
   }
   disposeHeatmapChart();
   disposeDailyChart();
-  disposeWeeklyChart();
-  disposeMonthlyChart();
+  disposeMonthlyHeatmapChart();
+  disposeYearlyHeatmapChart();
 
   stateStore.setState({ selectedView: viewId });
   renderCurrentView();
@@ -75,6 +77,7 @@ function changeDate(dateStr) {
   stateStore.setState({
     selectedDate: dateStr,
     selectedMonth: dateStr.substring(0, 7),
+    selectedYear: dateStr.substring(0, 4),
   });
   renderCurrentView();
 }
@@ -82,6 +85,38 @@ function changeDate(dateStr) {
 function changeMonth(monthStr) {
   stateStore.setState({
     selectedMonth: monthStr,
+    selectedYear: monthStr.substring(0, 4),
+    selectedDate: `${monthStr}-01`,
+  });
+  renderCurrentView();
+}
+
+function changeYear(yearStr) {
+  stateStore.setState({
+    selectedYear: yearStr,
+    selectedMonth: `${yearStr}-12`,
+    selectedDate: `${yearStr}-12-01`,
+  });
+  renderCurrentView();
+}
+
+function toggleMonthlyMode(mode) {
+  stateStore.setState({
+    monthlyHeatmapMode: mode,
+  });
+  renderCurrentView();
+}
+
+function toggleYearlyMode(mode) {
+  stateStore.setState({
+    yearlyHeatmapMode: mode,
+  });
+  renderCurrentView();
+}
+
+function toggleYearlyMetric(metricType) {
+  stateStore.setState({
+    yearlyHeatmapMetricType: metricType,
   });
   renderCurrentView();
 }
@@ -89,6 +124,55 @@ function changeMonth(monthStr) {
 function toggleHeatmapMedian(useMedian) {
   stateStore.setState({
     heatmapUseMedian: useMedian,
+  });
+  renderCurrentView();
+}
+
+function toggleMonthlyMedian(useMedian) {
+  stateStore.setState({
+    monthlyUseMedian: useMedian,
+  });
+  renderCurrentView();
+}
+
+function toggleYearlyMedian(useMedian) {
+  stateStore.setState({
+    yearlyUseMedian: useMedian,
+  });
+  renderCurrentView();
+}
+
+function drillDownToDate(dateStr) {
+  if (chartContainerEl) {
+    echarts.dispose(chartContainerEl);
+  }
+  disposeHeatmapChart();
+  disposeDailyChart();
+  disposeMonthlyHeatmapChart();
+  disposeYearlyHeatmapChart();
+
+  stateStore.setState({
+    selectedDate: dateStr,
+    selectedMonth: dateStr.substring(0, 7),
+    selectedYear: dateStr.substring(0, 4),
+    selectedView: 'daily',
+  });
+  renderCurrentView();
+}
+
+function drillDownToMonth(monthStr) {
+  if (chartContainerEl) {
+    echarts.dispose(chartContainerEl);
+  }
+  disposeHeatmapChart();
+  disposeDailyChart();
+  disposeMonthlyHeatmapChart();
+  disposeYearlyHeatmapChart();
+
+  stateStore.setState({
+    selectedMonth: monthStr,
+    selectedYear: monthStr.substring(0, 4),
+    selectedView: 'monthly_heatmap',
   });
   renderCurrentView();
 }
@@ -110,19 +194,35 @@ function renderCurrentView() {
 
   switch (state.selectedView) {
     case 'heatmap':
-      renderHeatmapView(chartContainerEl, filteredRecords, state);
+      renderHeatmapView(chartContainerEl, filteredRecords, state, {
+        onSelectDate: drillDownToDate,
+      });
       break;
     case 'daily':
       renderDailyView(chartContainerEl, filteredRecords, state);
       break;
-    case 'weekly':
-      renderWeeklyView(chartContainerEl, filteredRecords, state);
-      break;
+    case 'monthly_heatmap':
     case 'monthly':
-      renderMonthlyView(chartContainerEl, filteredRecords, state);
+      renderMonthlyHeatmapView(chartContainerEl, filteredRecords, state, {
+        onSelectDate: drillDownToDate,
+      });
+      break;
+    case 'yearly_heatmap':
+    case 'yearly':
+      renderYearlyHeatmapView(chartContainerEl, filteredRecords, state, {
+        onSelectDate: drillDownToDate,
+        onSelectMonth: drillDownToMonth,
+      });
+      break;
+    case 'weekly':
+      renderHeatmapView(chartContainerEl, filteredRecords, state, {
+        onSelectDate: drillDownToDate,
+      });
       break;
     default:
-      renderHeatmapView(chartContainerEl, filteredRecords, state);
+      renderHeatmapView(chartContainerEl, filteredRecords, state, {
+        onSelectDate: drillDownToDate,
+      });
       break;
   }
 }
@@ -136,7 +236,6 @@ async function init() {
   const metricSelectorContainer = document.getElementById('metric-selector-container');
   const viewNavContainer = document.getElementById('view-nav-container');
   const datePickerContainer = document.getElementById('date-picker-container');
-  const kpiContainer = document.getElementById('kpi-container');
 
   initRouteSelector(routeSelectorContainer, switchRoute);
   initDirectionToggle(directionToggleContainer, switchDirection);
@@ -144,7 +243,18 @@ async function init() {
     initMetricSelector(metricSelectorContainer, switchMetric);
   }
   initViewNav(viewNavContainer, switchView);
-  initDatePicker(datePickerContainer, changeDate, changeMonth, toggleHeatmapMedian);
+  initDatePicker(
+    datePickerContainer,
+    changeDate,
+    changeMonth,
+    toggleHeatmapMedian,
+    changeYear,
+    toggleMonthlyMode,
+    toggleYearlyMode,
+    toggleYearlyMetric,
+    toggleMonthlyMedian,
+    toggleYearlyMedian
+  );
 
   try {
     const config = await loadAppConfig();

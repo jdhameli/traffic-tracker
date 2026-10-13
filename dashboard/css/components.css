@@ -323,6 +323,17 @@
   transform: scale(0.92);
 }
 
+.date-nav-btn.jump-btn {
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.date-nav-btn.step-btn {
+  font-size: 0.70rem;
+  line-height: 1;
+}
+
 .date-current-display {
   display: inline-flex;
   align-items: center;
@@ -350,7 +361,7 @@
   cursor: pointer;
 }
 
-.date-weekday-tag, .date-week-tag, .date-month-tag {
+.date-weekday-tag, .date-week-tag, .date-month-tag, .date-year-tag {
   font-size: clamp(0.7rem, 2.2vw, 0.78rem);
   font-weight: 600;
   color: var(--color-text-primary);

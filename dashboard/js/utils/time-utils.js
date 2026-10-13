@@ -157,6 +157,65 @@ export function getWeekRangeEDT(dateStr) {
 }
 
 /**
+ * Given a start YYYY-MM-DD string in EDT, get consecutive dates (default 7 days).
+ * @param {string} dateStr
+ * @param {number} [numDays=7]
+ * @returns {{ startDate: string, endDate: string, days: string[] }}
+ */
+export function getRollingWeekRangeEDT(dateStr, numDays = 7) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const start = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  const format = (dt) => {
+    const yr = dt.getUTCFullYear();
+    const mo = String(dt.getUTCMonth() + 1).padStart(2, '0');
+    const da = String(dt.getUTCDate()).padStart(2, '0');
+    return `${yr}-${mo}-${da}`;
+  };
+
+  const days = Array.from({ length: numDays }, (_, i) => {
+    const cur = new Date(start);
+    cur.setUTCDate(start.getUTCDate() + i);
+    return format(cur);
+  });
+
+  return {
+    startDate: days[0],
+    endDate: days[days.length - 1],
+    days,
+  };
+}
+
+/**
+ * Shifts a YYYY-MM-DD date string by N days.
+ * @param {string} dateStr
+ * @param {number} daysDelta
+ * @returns {string}
+ */
+export function shiftDateStr(dateStr, daysDelta) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+  dt.setUTCDate(dt.getUTCDate() + daysDelta);
+  const yr = dt.getUTCFullYear();
+  const mo = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const da = String(dt.getUTCDate()).padStart(2, '0');
+  return `${yr}-${mo}-${da}`;
+}
+
+/**
+ * Shifts a YYYY-MM month string by N months.
+ * @param {string} monthStr - 'YYYY-MM'
+ * @param {number} monthsDelta
+ * @returns {string}
+ */
+export function shiftMonthStr(monthStr, monthsDelta) {
+  const [y, m] = monthStr.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1 + monthsDelta, 1, 12, 0, 0));
+  const yr = dt.getUTCFullYear();
+  const mo = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  return `${yr}-${mo}`;
+}
+
+/**
  * Format minutes into a friendly string (e.g. 12.4 -> "12m 24s" or "12.4 min")
  */
 export function formatMinutes(mins, detailed = false) {

@@ -7,11 +7,12 @@ import { computeWeeklyViewData } from '../utils/stats-engine.js';
 import { METRIC_CONFIGS, formatMetricValue } from '../utils/metric-utils.js';
 import { THEME_COLORS } from '../utils/theme-constants.js';
 import { updateChartHeader } from '../utils/chart-header.js';
+import { getSafeContainerWidth } from '../utils/chart-helpers.js';
 
 let chartInstance = null;
 
 export function renderWeeklyView(containerEl, records, state) {
-  const containerWidth = containerEl.parentElement?.clientWidth || containerEl.clientWidth || 960;
+  const containerWidth = getSafeContainerWidth(containerEl);
   const isMobile = containerWidth < 640;
   containerEl.style.height = isMobile ? '430px' : '520px';
 
@@ -58,6 +59,7 @@ export function renderWeeklyView(containerEl, records, state) {
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'axis',
+      confine: true,
       backgroundColor: THEME_COLORS.bgSurface,
       borderColor: THEME_COLORS.border,
       borderWidth: 1,

@@ -8,11 +8,12 @@ import { METRIC_CONFIGS, formatMetricValue, getMetricValue } from '../utils/metr
 import { minutesToTimeLabel, timeToMinutes } from '../utils/time-utils.js';
 import { THEME_COLORS } from '../utils/theme-constants.js';
 import { updateChartHeader } from '../utils/chart-header.js';
+import { getSafeContainerWidth, getClampedTooltipPosition } from '../utils/chart-helpers.js';
 
 let chartInstance = null;
 
 export function renderDailyView(containerEl, records, state) {
-  const containerWidth = containerEl.parentElement?.clientWidth || containerEl.clientWidth || 960;
+  const containerWidth = getSafeContainerWidth(containerEl);
   const isMobile = containerWidth < 640;
   containerEl.style.height = isMobile ? '430px' : '520px';
 
@@ -80,12 +81,14 @@ export function renderDailyView(containerEl, records, state) {
     backgroundColor: 'transparent',
     tooltip: {
       trigger: 'item',
+      confine: true,
+      position: getClampedTooltipPosition,
       backgroundColor: THEME_COLORS.bgSurface,
       borderColor: THEME_COLORS.border,
       borderWidth: 1,
       padding: [10, 14],
       textStyle: { color: THEME_COLORS.textPrimary, fontSize: 12 },
-      extraCssText: 'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border-radius: 8px;',
+      extraCssText: 'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border-radius: 8px; z-index: 9999; pointer-events: none;',
       formatter: function (params) {
         if (!params || !params.data) return '';
         const [minsFromMidnight, val, record] = params.data;
