@@ -1,62 +1,83 @@
 /**
- * View 1: Heatmap View (Day of Week vs. Hour of Day in EDT).
- * Uses standard unified theme palette.
+ * View 1: Weekly Heatmap View (Day of Week vs. 30-Minute Interval in EDT).
+ * Powered by Observable Plot with enhanced color range, tight square grid, and hover tooltips.
  */
 
+import * as Plot from '@observablehq/plot';
 import { buildHeatmapMatrix } from '../utils/stats-engine.js';
-import { DAYS_OF_WEEK, TIME_SLOTS_30MIN, formatTimeSlot, getRollingWeekRangeEDT } from '../utils/time-utils.js';
-import { METRIC_CONFIGS, formatMetricValue } from '../utils/metric-utils.js';
-import { THEME_COLORS } from '../utils/theme-constants.js';
+import { DAYS_OF_WEEK, formatTimeSlot, getRollingWeekRangeEDT } from '../utils/time-utils.js';
+import { formatTravelTime } from '../utils/metric-utils.js';
 import { updateChartHeader } from '../utils/chart-header.js';
-import { getSafeContainerWidth, getClampedTooltipPosition } from '../utils/chart-helpers.js';
+import { mountPlot, renderEmptyState, travelTimeColor, TIP_STYLE } from '../utils/plot-theme.js';
 
-let chartInstance = null;
-let currentCallbacks = null;
-
-function calculateHeatmapDimensions(containerEl) {
-  const containerWidth = getSafeContainerWidth(containerEl);
-  const isMobile = containerWidth < 640;
-  const leftMargin = isMobile ? 42 : 64; // Generous left margin to accommodate date labels
-  const rightMargin = isMobile ? 18 : 32; // Generous safe margin so rightmost column is NEVER cut off
-  const availableWidth = Math.max(containerWidth - leftMargin - rightMargin, 48 * 6);
-  const cellSize = Math.max(Math.floor(availableWidth / 48), 6);
-  const gridWidth = cellSize * 48;
-  const gridHeight = cellSize * 7;
-  const totalHeight = gridHeight + (isMobile ? 125 : 140);
-  // Guarantee right edge safety: computedLeft + gridWidth <= containerWidth - rightMargin
-  const maxLeft = Math.max(leftMargin, containerWidth - gridWidth - rightMargin);
-  const computedLeft = Math.max(leftMargin, Math.min(maxLeft, Math.floor((containerWidth - gridWidth) / 2)));
-
-  return { cellSize, gridWidth, gridHeight, totalHeight, computedLeft, isMobile, containerWidth };
-}
+let activeMount = null;
 
 export function renderHeatmapView(containerEl, records, state, callbacks = {}) {
-  currentCallbacks = callbacks;
-  // Apply height first so scrollbar appearance doesn't throw off clientWidth
-  const prelimDims = calculateHeatmapDimensions(containerEl);
-  containerEl.style.height = `${prelimDims.totalHeight}px`;
-  const dims = calculateHeatmapDimensions(containerEl);
-  containerEl.style.height = `${dims.totalHeight}px`;
+  disposeHeatmapChart();
 
-  chartInstance = echarts.getInstanceByDom(containerEl);
-  if (!chartInstance) {
-    chartInstance = echarts.init(containerEl, null, { renderer: 'svg' });
+  const useMedian = state.heatmapUseMedian !== false;
+  const targetDate =
+    state.selectedDate ||
+    (state.routeData?.availableDates?.length
+      ? state.routeData.availableDates[state.routeData.availableDates.length - 1]
+      : '2026-10-25');
+  const { startDate, endDate, days } = getRollingWeekRangeEDT(targetDate);
+
+  const subtitleText = useMedian
+    ? 'All-Time Historical Median • Day of Week vs. 30-Min Intervals (EDT)'
+    : `7-Day Commute Window: ${startDate} – ${endDate} (EDT) • 30-Min Intervals • Hover square for details • Click to inspect Daily View`;
+
+  if (!records || records.length === 0) {
+    updateChartHeader({
+      title: 'Weekly Travel Time Heatmap (EDT)',
+      subtitle: subtitleText,
+      unit: 'min',
+      metricLabel: 'Travel Time',
+    });
+    renderEmptyState(containerEl, {
+      title: 'No Data Available',
+      message: 'No observations found for this route and direction to generate a weekly heatmap.',
+    });
+    return;
   }
 
-  const handleResize = () => {
-    if (chartInstance && containerEl.isConnected) {
-      renderHeatmapView(containerEl, records, state, callbacks);
-    }
-  };
-  window.removeEventListener('resize', handleResize);
-  window.addEventListener('resize', handleResize);
+  const matrixData = buildHeatmapMatrix(records, {
+    weekDays: days,
+    useMedian,
+  });
 
-  const metricKey = state.selectedMetric || 'travel_time_min';
-  const metricConfig = METRIC_CONFIGS[metricKey] || METRIC_CONFIGS.travel_time_min;
-  const useMedian = !!state.heatmapUseMedian;
+  // Only observed cells are drawn; unrecorded slots are left blank
+  const observedCells = matrixData.filter((d) => d.count > 0 && d.value !== null);
 
-  const { startDate, endDate, days } = getRollingWeekRangeEDT(state.selectedDate || '2026-10-04');
-  const dayLabels = useMedian
+  if (observedCells.length === 0) {
+    updateChartHeader({
+      title: 'Weekly Travel Time Heatmap (EDT)',
+      subtitle: subtitleText,
+      unit: 'min',
+      metricLabel: 'Travel Time',
+    });
+    renderEmptyState(containerEl, {
+      title: 'No Observations in Selected Window',
+      message: 'No traffic records recorded for this route in the selected week.',
+    });
+    return;
+  }
+
+  const vals = observedCells.map((d) => d.value);
+  const minVal = vals.length > 0 ? Math.min(...vals) : null;
+  const maxVal = vals.length > 0 ? Math.max(...vals) : null;
+
+  updateChartHeader({
+    title: 'Weekly Travel Time Heatmap (EDT)',
+    subtitle: subtitleText,
+    unit: 'min',
+    metricLabel: 'Travel Time',
+    minVal,
+    maxVal,
+  });
+
+  // Y domain: day labels in Sun-Sat order
+  const dayOrder = useMedian
     ? DAYS_OF_WEEK
     : days.map((dateStr) => {
         const [y, m, d] = dateStr.split('-').map(Number);
@@ -65,213 +86,98 @@ export function renderHeatmapView(containerEl, records, state, callbacks = {}) {
         return `${dayName} ${dateStr.substring(5)}`;
       });
 
-  if (!records || records.length === 0) {
-    chartInstance.clear();
-    containerEl.innerHTML = `
-      <div class="chart-empty-state">
-        <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
-        <h3>No Data Available</h3>
-        <p>No observations found for this route and direction to generate a heatmap.</p>
-      </div>
-    `;
-    chartInstance = null;
-    return;
-  }
+  activeMount = mountPlot(
+    containerEl,
+    (width) => {
+      const isMobile = width < 640;
+      const leftMargin = isMobile ? 54 : 80;
+      const rightMargin = isMobile ? 14 : 24;
+      const availableWidth = Math.max(width - leftMargin - rightMargin, 300);
+      const cellSize = Math.max(Math.floor(availableWidth / 48), isMobile ? 12 : 16);
+      const gridWidth = cellSize * 48;
+      const gridHeight = cellSize * 7;
+      const marginTop = 20;
+      const marginBottom = isMobile ? 52 : 45;
+      const plotWidth = leftMargin + gridWidth + rightMargin;
+      const plotHeight = marginTop + gridHeight + marginBottom;
 
-  const matrixData = buildHeatmapMatrix(records, metricKey, {
-    weekDays: days,
-    useMedian,
-  });
-  const slotLabels = TIME_SLOTS_30MIN.map((s) => s.fullLabel);
-
-  // Filter ONLY recorded slots (unrecorded slots are left completely blank)
-  const observedMatrixData = matrixData.filter(([s, d, displayVal, count]) => count > 0 && displayVal !== null);
-  const observedVals = observedMatrixData.map((d) => d[2]);
-
-  let minScale = 0;
-  let maxScale = 2;
-
-  if (observedVals.length > 0) {
-    const rawMin = Math.min(...observedVals);
-    const rawMax = Math.max(...observedVals);
-
-    if (metricKey === 'traffic_delay_min') {
-      // For delay: 0 delay is free-flow green, max delay is red
-      minScale = 0;
-      maxScale = rawMax > 0 ? Number(rawMax.toFixed(1)) : 1;
-    } else {
-      // For travel time, baseline time, distance: calibrate across the actual observed span
-      if (rawMin === rawMax) {
-        minScale = Math.max(0, Number((rawMin - 1).toFixed(1)));
-        maxScale = Number((rawMax + 1).toFixed(1));
-      } else {
-        minScale = Number(rawMin.toFixed(1));
-        maxScale = Number(rawMax.toFixed(1));
-      }
-    }
-  }
-
-  const subtitleText = useMedian
-    ? `All-Time Historical Median • Day of Week vs. 30-Min Intervals (EDT)`
-    : `7-Day Commute Window: ${startDate} – ${endDate} (EDT) • 30-Min Intervals • Click any reading to inspect Daily View`;
-
-  // Update decoupled responsive HTML header (eliminates text collisions across all layouts)
-  updateChartHeader({
-    title: `Weekly ${metricConfig.label} Heatmap (EDT)`,
-    subtitle: subtitleText,
-    unit: metricConfig.unit,
-    metricLabel: metricConfig.label,
-  });
-
-  // Determine legible step intervals for X-axis labels
-  const step = dims.isMobile ? 12 : dims.containerWidth < 960 ? 6 : 4;
-
-  const option = {
-    backgroundColor: 'transparent',
-    tooltip: {
-      confine: true,
-      position: getClampedTooltipPosition,
-      backgroundColor: THEME_COLORS.bgSurface,
-      borderColor: THEME_COLORS.border,
-      borderWidth: 1,
-      padding: [10, 14],
-      textStyle: {
-        color: THEME_COLORS.textPrimary,
-        fontSize: 12,
-      },
-      extraCssText: 'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border-radius: 8px; z-index: 9999; pointer-events: none;',
-      formatter: function (params) {
-        if (!params || !params.data) return '';
-        const dayLabel = dayLabels[dayIdx] || DAYS_OF_WEEK[dayIdx];
-        const timeLabel = formatTimeSlot(slotIdx);
-        const dayDate = days && days[dayIdx] ? days[dayIdx] : '';
-
-        return `
-          <div style="font-weight:600;border-bottom:1px solid ${THEME_COLORS.borderSplit};padding-bottom:4px;margin-bottom:6px;color:${THEME_COLORS.textPrimary};">
-            ${dayDate ? `${dayDate} (${dayLabel})` : dayLabel} at ${timeLabel} (EDT)
-          </div>
-          <div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0;">
-            <span style="color:${THEME_COLORS.textSecondary};">${useMedian ? 'Median' : 'Avg'} ${metricConfig.label}:</span>
-            <strong style="color:${THEME_COLORS.primary}; font-size:1.05rem;">
-              ${formatMetricValue(displayVal, metricKey, true)}
-            </strong>
-          </div>
-          <div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0;">
-            <span style="color:${THEME_COLORS.textSecondary};">${useMedian ? 'Avg' : 'Median'} ${metricConfig.label}:</span>
-            <strong style="color:${THEME_COLORS.textPrimary};">${formatMetricValue(useMedian ? avgVal : medVal, metricKey)}</strong>
-          </div>
-          <div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0;font-size:0.8rem;color:${THEME_COLORS.textMuted};">
-            <span>Sample Count:</span>
-            <span style="color:${THEME_COLORS.textPrimary};font-weight:500;">${count} observations</span>
-          </div>
-          ${
-            !useMedian && dayDate
-              ? `<div style="margin-top:6px;padding-top:4px;border-top:1px dashed ${THEME_COLORS.border};color:${THEME_COLORS.primary};font-size:0.75rem;font-weight:500;">
-                  👉 Click to open Daily View for ${dayDate}
-                </div>`
-              : ''
-          }
-        `;
-      },
-    },
-    grid: {
-      top: dims.isMobile ? 15 : 20,
-      left: dims.computedLeft,
-      width: dims.gridWidth,
-      height: dims.gridHeight,
-    },
-    xAxis: {
-      type: 'category',
-      data: slotLabels,
-      splitArea: { show: false },
-      splitLine: { show: false },
-      axisLabel: {
-        color: THEME_COLORS.textMuted,
-        fontSize: dims.isMobile ? 9 : 10,
-        interval: (idx) => idx % step === 0,
-        formatter: (val, idx) => {
-          if (idx % step !== 0) return '';
-          const slot = TIME_SLOTS_30MIN[idx];
-          return slot ? slot.hourOnlyLabel : val;
-        },
-      },
-      axisLine: { lineStyle: { color: THEME_COLORS.border } },
-    },
-    yAxis: {
-      type: 'category',
-      data: dayLabels,
-      splitArea: { show: false },
-      splitLine: { show: false },
-      axisLabel: {
-        color: THEME_COLORS.textSecondary,
-        fontSize: dims.isMobile ? 10 : 12,
-        fontWeight: 500,
-      },
-      axisLine: { lineStyle: { color: THEME_COLORS.border } },
-    },
-    visualMap: {
-      dimension: 2, // Explicitly evaluate displayVal at index 2
-      min: minScale,
-      max: maxScale,
-      calculable: true,
-      orient: 'horizontal',
-      left: 'center',
-      bottom: dims.isMobile ? 6 : 10,
-      itemHeight: dims.isMobile ? 120 : 180,
-      itemWidth: dims.isMobile ? 11 : 14,
-      inRange: {
-        color: THEME_COLORS.heatmapGradient,
-      },
-      text: [
-        `High (${maxScale}${metricConfig.shortUnit})`,
-        `Low (${minScale}${metricConfig.shortUnit})`,
-      ],
-      textStyle: {
-        color: THEME_COLORS.textMuted,
-        fontSize: dims.isMobile ? 10 : 11,
-      },
-    },
-    series: [
-      {
-        name: metricConfig.label,
-        type: 'heatmap',
-        data: observedMatrixData, // ONLY observed readings are drawn; unrecorded slots are completely blank
-        label: { show: false },
-        itemStyle: {
-          borderColor: THEME_COLORS.bgSurface,
-          borderWidth: 1.5,
-          borderRadius: 2,
-        },
-        emphasis: {
-          itemStyle: {
-            shadowBlur: 6,
-            shadowColor: 'rgba(0, 0, 0, 0.25)',
-            borderColor: THEME_COLORS.textPrimary,
-            borderWidth: 2,
+      return Plot.plot({
+        width: plotWidth,
+        height: plotHeight,
+        marginTop,
+        marginRight: rightMargin,
+        marginBottom,
+        marginLeft: leftMargin,
+        color: travelTimeColor(vals),
+        x: {
+          domain: Array.from({ length: 48 }, (_, i) => i),
+          padding: 0, // Keep squares tightly packed together
+          ticks: isMobile ? [0, 12, 24, 36] : [0, 6, 12, 18, 24, 30, 36, 42],
+          tickFormat: (slot) => {
+            const h = Math.floor(slot / 2);
+            if (h === 0 || h === 24) return '12 AM';
+            if (h === 12) return '12 PM';
+            return h < 12 ? `${h} AM` : `${h - 12} PM`;
           },
+          label: null,
         },
+        y: {
+          domain: dayOrder,
+          padding: 0, // Keep squares tightly packed together
+          label: null,
+          tickSize: 0,
+        },
+        marks: [
+          // Heatmap colored squares (tightly packed, no in-cell text)
+          Plot.cell(observedCells, {
+            x: 'slot',
+            y: 'dayLabel',
+            fill: 'value',
+            inset: 0.5,
+            rx: 1,
+          }),
+          // Hover/Tap Tooltip on EVERY square
+          Plot.tip(
+            observedCells,
+            Plot.pointer({
+              x: 'slot',
+              y: 'dayLabel',
+              ...TIP_STYLE,
+              title: (d) => {
+                const header = d.dateStr ? `${d.dateStr} (${d.dayLabel})` : d.dayLabel;
+                const lines = [
+                  `${header} at ${formatTimeSlot(d.slot)} EDT`,
+                  `Average       ${formatTravelTime(d.mean, true)}`,
+                  `Median        ${formatTravelTime(d.median)}`,
+                  `Min – Max     ${formatTravelTime(d.min)} – ${formatTravelTime(d.max)}`,
+                  `Observations  ${d.count} trip${d.count === 1 ? '' : 's'}`,
+                ];
+                if (!useMedian && d.dateStr) {
+                  lines.push('👉 Click square to open Daily View');
+                }
+                return lines.join('\n');
+              },
+            })
+          ),
+        ],
+      });
+    },
+    {
+      minVal,
+      maxVal,
+      unit: 'min',
+      onClickDatum: (datum) => {
+        if (!useMedian && datum?.dateStr && typeof callbacks.onSelectDate === 'function') {
+          callbacks.onSelectDate(datum.dateStr);
+        }
       },
-    ],
-  };
-
-  chartInstance.setOption(option, true);
-  chartInstance.resize();
-
-  // Attach click listener to drill down into Daily View
-  chartInstance.off('click');
-  chartInstance.on('click', (params) => {
-    if (!params || !params.data) return;
-    const dayIdx = params.data[1];
-    const clickedDate = days && days[dayIdx] ? days[dayIdx] : null;
-    if (clickedDate && currentCallbacks && typeof currentCallbacks.onSelectDate === 'function') {
-      currentCallbacks.onSelectDate(clickedDate);
     }
-  });
+  );
 }
 
 export function disposeHeatmapChart() {
-  if (chartInstance) {
-    chartInstance.dispose();
-    chartInstance = null;
+  if (activeMount) {
+    activeMount.dispose();
+    activeMount = null;
   }
 }

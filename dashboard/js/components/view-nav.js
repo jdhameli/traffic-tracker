@@ -8,7 +8,6 @@ export const VIEWS = [
   { id: 'daily', label: 'Daily View' },
   { id: 'heatmap', label: 'Weekly Heatmap' },
   { id: 'monthly_heatmap', label: 'Monthly Heatmap' },
-  { id: 'yearly_heatmap', label: 'Yearly Heatmap' },
 ];
 
 export function initViewNav(containerEl, onSelectView) {

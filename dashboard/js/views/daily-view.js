@@ -1,235 +1,208 @@
 /**
  * View 2: Daily View (24-Hour continuous EDT timeline + Historical Median Trendline).
- * Uses standard unified theme palette.
+ * Powered by Observable Plot.
  */
 
+import * as Plot from '@observablehq/plot';
 import { computeDailyViewData } from '../utils/stats-engine.js';
-import { METRIC_CONFIGS, formatMetricValue, getMetricValue } from '../utils/metric-utils.js';
-import { minutesToTimeLabel, timeToMinutes } from '../utils/time-utils.js';
+import { formatTravelTime } from '../utils/metric-utils.js';
+import { minutesToTimeLabel, timeToMinutes, formatHour } from '../utils/time-utils.js';
 import { THEME_COLORS } from '../utils/theme-constants.js';
 import { updateChartHeader } from '../utils/chart-header.js';
-import { getSafeContainerWidth, getClampedTooltipPosition } from '../utils/chart-helpers.js';
+import { mountPlot, renderEmptyState, TIP_STYLE } from '../utils/plot-theme.js';
 
-let chartInstance = null;
+let activeMount = null;
 
 export function renderDailyView(containerEl, records, state) {
-  const containerWidth = getSafeContainerWidth(containerEl);
-  const isMobile = containerWidth < 640;
-  containerEl.style.height = isMobile ? '430px' : '520px';
-
-  chartInstance = echarts.getInstanceByDom(containerEl);
-  if (!chartInstance) {
-    chartInstance = echarts.init(containerEl, null, { renderer: 'svg' });
-  }
-
-  const handleResize = () => {
-    if (chartInstance && containerEl.isConnected) {
-      renderDailyView(containerEl, records, state);
-    }
-  };
-  window.removeEventListener('resize', handleResize);
-  window.addEventListener('resize', handleResize);
+  disposeDailyChart();
 
   const selectedDate = state.selectedDate;
-  const metricKey = state.selectedMetric || 'travel_time_min';
-  const metricConfig = METRIC_CONFIGS[metricKey] || METRIC_CONFIGS.travel_time_min;
 
-  // Update decoupled responsive HTML header (eliminates text collisions across all layouts)
   updateChartHeader({
-    title: `Daily ${metricConfig.label} Profile: ${selectedDate} (EDT)`,
-    subtitle: 'Observed points vs. historical median baseline across 24-hour EDT day',
-    unit: metricConfig.unit,
-    metricLabel: metricConfig.label,
+    title: `Daily Travel Time Profile: ${selectedDate} (EDT)`,
+    subtitle: 'Observed trips vs. historical median baseline across 24-hour EDT day',
+    unit: 'min',
+    metricLabel: 'Travel Time',
   });
 
-  const dailyData = computeDailyViewData(records, selectedDate, metricKey);
+  const dailyData = computeDailyViewData(records, selectedDate);
   const { dayRecords, hourlyMedianBaseline, hasPriorData } = dailyData;
 
   if (dayRecords.length === 0 && !hasPriorData) {
-    chartInstance.clear();
-    containerEl.innerHTML = `
-      <div class="chart-empty-state">
-        <svg viewBox="0 0 24 24" width="44" height="44" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-        <h3>No Observations for ${selectedDate}</h3>
-        <p>Use the date navigator above to select a date with recorded traffic data.</p>
-      </div>
-    `;
-    chartInstance = null;
+    renderEmptyState(containerEl, {
+      title: `No Observations for ${selectedDate}`,
+      message: 'Use the date navigator above to select a date with recorded traffic data.',
+    });
     return;
   }
 
-  // Exact observation points in [minutesFromMidnight, metricValue, record]
+  // Create lookup map for hourly medians
+  const medianMap = new Map();
+  for (const b of hourlyMedianBaseline) {
+    if (b.medianValue !== null) {
+      medianMap.set(b.hour, b.medianValue);
+    }
+  }
+
+  // Observed points
   const actualPoints = dayRecords.map((r) => {
     const mins = timeToMinutes(r.edt.edtHour, r.edt.edtMinute);
-    const val = getMetricValue(r, metricKey);
-    return [mins, val, r];
+    const med = medianMap.get(r.edt.edtHour) ?? null;
+    return {
+      minute: mins,
+      value: r.travel_time_min,
+      timeStr: r.edt.edtTimeStr,
+      dateStr: r.edt.edtDateStr,
+      hour: r.edt.edtHour,
+      medianForHour: med,
+      diff: med !== null ? Number((r.travel_time_min - med).toFixed(1)) : null,
+      record: r,
+    };
   });
 
-  // Historical median baseline curve: [hour * 60, medianValue]
+  // Historical median baseline curve
   const medianPoints = hourlyMedianBaseline
     .filter((b) => b.medianValue !== null)
-    .map((b) => [b.hour * 60, b.medianValue]);
+    .map((b) => ({
+      minute: b.hour * 60 + 30, // center in hour
+      value: b.medianValue,
+      hour: b.hour,
+      sampleCount: b.sampleCount,
+    }));
 
-  const allYVals = [
-    ...actualPoints.map((p) => p[1]),
-    ...medianPoints.map((p) => p[1]),
+  const actualVals = actualPoints.map((p) => p.value);
+  const minVal = actualVals.length > 0 ? Math.min(...actualVals) : null;
+  const maxVal = actualVals.length > 0 ? Math.max(...actualVals) : null;
+
+  updateChartHeader({
+    title: `Daily Travel Time Profile: ${selectedDate} (EDT)`,
+    subtitle: 'Observed trips vs. historical median baseline across 24-hour EDT day',
+    unit: 'min',
+    metricLabel: 'Travel Time',
+    minVal,
+    maxVal,
+  });
+
+  const allY = [
+    ...actualPoints.map((p) => p.value),
+    ...medianPoints.map((p) => p.value),
   ];
-  const maxY = allYVals.length > 0 ? Math.max(...allYVals) : 0;
-  const yUpper = maxY > 0 ? Math.ceil(maxY * 1.25) : 5;
+  const maxY = allY.length > 0 ? Math.max(...allY) : 10;
+  const yUpper = Math.ceil(maxY * 1.25);
 
-  const option = {
-    backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'item',
-      confine: true,
-      position: getClampedTooltipPosition,
-      backgroundColor: THEME_COLORS.bgSurface,
-      borderColor: THEME_COLORS.border,
-      borderWidth: 1,
-      padding: [10, 14],
-      textStyle: { color: THEME_COLORS.textPrimary, fontSize: 12 },
-      extraCssText: 'box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); border-radius: 8px; z-index: 9999; pointer-events: none;',
-      formatter: function (params) {
-        if (!params || !params.data) return '';
-        const [minsFromMidnight, val, record] = params.data;
-        const timeStr = minutesToTimeLabel(minsFromMidnight);
+  activeMount = mountPlot(containerEl, (width) => {
+    const isMobile = width < 640;
+    const ticksX = isMobile
+      ? [0, 360, 720, 1080, 1440]
+      : [0, 180, 360, 540, 720, 900, 1080, 1260, 1440];
 
-        if (record) {
-          return `
-            <div style="font-weight:600;border-bottom:1px solid ${THEME_COLORS.borderSplit};padding-bottom:5px;margin-bottom:6px;color:${THEME_COLORS.textPrimary};">
-              ${timeStr} EDT (${selectedDate})
-            </div>
-            <div style="display:flex;justify-content:space-between;gap:18px;margin:4px 0;">
-              <span style="color:${THEME_COLORS.textSecondary};">${metricConfig.label}:</span>
-              <strong style="color:${THEME_COLORS.primary}; font-size:1.05rem;">
-                ${formatMetricValue(val, metricKey, true)}
-              </strong>
-            </div>
-            <div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0;font-size:0.8rem;color:${THEME_COLORS.textMuted};">
-              <span>Total Duration:</span>
-              <span style="color:${THEME_COLORS.textSecondary};font-weight:500;">${record.travel_time_min.toFixed(1)}m</span>
-            </div>
-            <div style="display:flex;justify-content:space-between;gap:18px;margin:3px 0;font-size:0.8rem;color:${THEME_COLORS.textMuted};">
-              <span>Free-flow Baseline:</span>
-              <span style="color:${THEME_COLORS.textSecondary};font-weight:500;">${record.baseline_time_min.toFixed(1)}m</span>
-            </div>
-          `;
-        } else {
-          return `
-            <div style="font-weight:600;border-bottom:1px solid ${THEME_COLORS.borderSplit};padding-bottom:5px;margin-bottom:6px;color:${THEME_COLORS.textPrimary};">
-              ${timeStr} EDT (Historical Benchmark)
-            </div>
-            <div style="display:flex;justify-content:space-between;gap:18px;margin:4px 0;">
-              <span style="color:${THEME_COLORS.textSecondary};">Median ${metricConfig.label}:</span>
-              <strong style="color:${THEME_COLORS.median};">${formatMetricValue(val, metricKey, true)}</strong>
-            </div>
-          `;
-        }
-      },
-    },
-    legend: {
-      bottom: isMobile ? 4 : 8,
-      left: 'center',
-      orient: 'horizontal',
-      itemGap: isMobile ? 12 : 24,
-      textStyle: { color: THEME_COLORS.textSecondary, fontSize: isMobile ? 10 : 11 },
-      data: [
-        `Observed ${metricConfig.label} (${selectedDate})`,
-        'Historical Median Trendline',
-      ],
-    },
-    grid: {
-      top: isMobile ? 22 : 28,
-      bottom: isMobile ? 55 : 50,
-      left: isMobile ? 38 : 50,
-      right: isMobile ? 16 : 28,
-      containLabel: true,
-    },
-    xAxis: {
-      type: 'value',
-      min: 0,
-      max: 1440,
-      interval: isMobile ? 360 : 180,
-      axisLabel: {
-        color: THEME_COLORS.textMuted,
-        fontSize: isMobile ? 10 : 11,
-        formatter: (val) => {
-          if (val === 0 || val === 1440) return '12 AM';
-          if (val === 180) return isMobile ? '' : '3 AM';
-          if (val === 360) return '6 AM';
-          if (val === 540) return isMobile ? '' : '9 AM';
-          if (val === 720) return '12 PM';
-          if (val === 900) return isMobile ? '' : '3 PM';
-          if (val === 1080) return '6 PM';
-          if (val === 1260) return isMobile ? '' : '9 PM';
+    return Plot.plot({
+      width,
+      height: isMobile ? 380 : 440,
+      marginTop: 20,
+      marginRight: isMobile ? 18 : 32,
+      marginBottom: 50,
+      marginLeft: isMobile ? 44 : 54,
+      x: {
+        domain: [0, 1440],
+        ticks: ticksX,
+        tickFormat: (mins) => {
+          if (mins === 0 || mins === 1440) return '12 AM';
+          if (mins === 180) return '3 AM';
+          if (mins === 360) return '6 AM';
+          if (mins === 540) return '9 AM';
+          if (mins === 720) return '12 PM';
+          if (mins === 900) return '3 PM';
+          if (mins === 1080) return '6 PM';
+          if (mins === 1260) return '9 PM';
           return '';
         },
+        label: null,
       },
-      axisLine: { lineStyle: { color: THEME_COLORS.border } },
-      splitLine: { show: true, lineStyle: { color: THEME_COLORS.borderSplit, type: 'dashed' } },
-    },
-    yAxis: {
-      type: 'value',
-      min: 0,
-      max: yUpper,
-      name: metricConfig.unit,
-      nameLocation: 'end',
-      nameTextStyle: {
-        color: THEME_COLORS.textMuted,
-        fontSize: 11,
-        align: 'right',
-        padding: [0, 4, 4, 0],
+      y: {
+        domain: [0, yUpper],
+        label: 'Travel Time (min)',
+        grid: true,
       },
-      axisLabel: {
-        color: THEME_COLORS.textMuted,
-        formatter: (val) => `${val}${metricConfig.shortUnit}`,
-      },
-      axisLine: { lineStyle: { color: THEME_COLORS.border } },
-      splitLine: { lineStyle: { color: THEME_COLORS.borderSplit } },
-    },
-    series: [
-      {
-        name: `Observed ${metricConfig.label} (${selectedDate})`,
-        type: 'line',
-        data: actualPoints,
-        smooth: false,
-        showSymbol: true,
-        symbol: 'circle',
-        symbolSize: isMobile ? 7 : 9,
-        itemStyle: {
-          color: THEME_COLORS.primary,
-          borderWidth: 2,
-          borderColor: THEME_COLORS.bgSurface,
-        },
-        lineStyle: { width: 2.5, color: THEME_COLORS.primary },
-        areaStyle: {
-          color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            { offset: 0, color: THEME_COLORS.primaryAreaStart },
-            { offset: 1, color: THEME_COLORS.primaryAreaEnd },
-          ]),
-        },
-      },
-      {
-        name: 'Historical Median Trendline',
-        type: 'line',
-        data: medianPoints,
-        smooth: true,
-        showSymbol: true,
-        symbol: 'emptyCircle',
-        symbolSize: isMobile ? 5 : 6,
-        lineStyle: { width: 2, color: THEME_COLORS.median, type: 'dashed' },
-        itemStyle: { color: THEME_COLORS.median },
-      },
-    ],
-  };
-
-  chartInstance.setOption(option, true);
-  chartInstance.resize();
+      marks: [
+        // Observed trip area fill
+        actualPoints.length > 1
+          ? Plot.areaY(actualPoints, {
+              x: 'minute',
+              y: 'value',
+              fill: THEME_COLORS.primary,
+              fillOpacity: 0.1,
+              curve: 'monotone-x',
+            })
+          : null,
+        // Observed trip line
+        actualPoints.length > 1
+          ? Plot.lineY(actualPoints, {
+              x: 'minute',
+              y: 'value',
+              stroke: THEME_COLORS.primary,
+              strokeWidth: 2.5,
+              curve: 'monotone-x',
+            })
+          : null,
+        // Historical median dashed curve
+        medianPoints.length > 0
+          ? Plot.lineY(medianPoints, {
+              x: 'minute',
+              y: 'value',
+              stroke: THEME_COLORS.median,
+              strokeWidth: 2,
+              strokeDasharray: '4,4',
+              curve: 'monotone-x',
+            })
+          : null,
+        // Historical median dots
+        medianPoints.length > 0
+          ? Plot.dot(medianPoints, {
+              x: 'minute',
+              y: 'value',
+              fill: THEME_COLORS.median,
+              r: isMobile ? 2.5 : 3,
+            })
+          : null,
+        // Observed points
+        Plot.dot(actualPoints, {
+          x: 'minute',
+          y: 'value',
+          fill: THEME_COLORS.primary,
+          stroke: THEME_COLORS.bgSurface,
+          strokeWidth: 2,
+          r: isMobile ? 4 : 5,
+        }),
+        // Interactive tooltip on points
+        Plot.tip(
+          actualPoints,
+          Plot.pointerX({
+            x: 'minute',
+            y: 'value',
+            ...TIP_STYLE,
+            title: (d) => {
+              const lines = [
+                `${minutesToTimeLabel(d.minute)} EDT (${d.dateStr})`,
+                `Travel Time   ${formatTravelTime(d.value, true)}`,
+              ];
+              if (d.medianForHour !== null) {
+                lines.push(`Hist. Median  ${formatTravelTime(d.medianForHour)}`);
+                const sign = d.diff >= 0 ? '+' : '';
+                lines.push(`Difference    ${sign}${d.diff}m vs. median`);
+              }
+              return lines.join('\n');
+            },
+          })
+        ),
+      ],
+    });
+  }, { minVal, maxVal, unit: 'min' });
 }
 
 export function disposeDailyChart() {
-  if (chartInstance) {
-    chartInstance.dispose();
-    chartInstance = null;
+  if (activeMount) {
+    activeMount.dispose();
+    activeMount = null;
   }
 }
