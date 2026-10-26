@@ -3,25 +3,25 @@
    ========================================================================== */
 
 .app-wrapper {
-  max-width: 1400px;
+  max-width: 1240px;
   width: 100%;
   margin: 0 auto;
-  padding: clamp(8px, 2.5vw, 24px) clamp(10px, 3vw, 28px) clamp(24px, 4vw, 48px);
+  padding: clamp(10px, 2.5vw, 24px) clamp(12px, 3vw, 24px) clamp(24px, 4vw, 48px);
   display: flex;
   flex-direction: column;
-  gap: clamp(10px, 1.8vw, 16px);
+  gap: clamp(12px, 2vw, 18px);
   min-height: 100vh;
   box-sizing: border-box;
   overflow-x: hidden;
 }
 
-/* Header */
+/* Header — Balanced 3-Zone Architecture (Brand Left, Tabs Center, Status Right) */
 .app-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
-  padding: 10px clamp(10px, 2vw, 20px);
+  gap: 16px;
+  padding: 8px clamp(12px, 2vw, 20px);
   background: var(--color-bg-surface-glass);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
@@ -42,7 +42,7 @@
   align-items: center;
   gap: 10px;
   min-width: 0;
-  flex-shrink: 0;
+  flex: 0 0 auto;
 }
 
 .brand-icon {
@@ -66,15 +66,31 @@
   white-space: nowrap;
 }
 
+.header-view-nav {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1 1 auto;
+  max-width: 440px;
+  min-width: 0;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
 .tz-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 8px;
+  padding: 4px 10px;
   background: var(--color-bg-subtle-glass);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-full);
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 600;
   color: var(--color-text-secondary);
   flex-shrink: 0;
@@ -88,19 +104,15 @@
   box-shadow: 0 0 6px rgba(16, 185, 129, 0.6);
 }
 
-.header-view-nav {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  max-width: 100%;
-}
-
-/* Controls Bar — Modern Two-Tier Minimal Card */
+/* Controls Bar — Unified Centered Toolbar (Single Tier, Balanced Geometry) */
 .controls-bar {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 12px clamp(12px, 2vw, 20px);
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  padding: 10px clamp(12px, 2vw, 24px);
   background: var(--color-bg-surface-glass);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -113,41 +125,39 @@
   transition: var(--transition-normal);
 }
 
-/* Primary Controls Row: Route, Direction, Metric */
-.controls-left {
-  display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 10px;
-  width: 100%;
-  min-width: 0;
-}
-
-.controls-left > div {
-  width: 100%;
-  min-width: 0;
-}
-
-/* Secondary Controls Row: Date Range & Historical Scope Navigator */
-.controls-right {
+.controls-group {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 100%;
-  border-top: 1px solid var(--color-border);
-  padding-top: 10px;
+  gap: 10px;
+  flex-wrap: wrap;
   min-width: 0;
-  box-sizing: border-box;
 }
 
-/* Main Chart Surface */
+.controls-route-group {
+  flex: 0 1 auto;
+}
+
+.controls-date-group {
+  flex: 0 1 auto;
+}
+
+.controls-divider {
+  width: 1px;
+  height: 24px;
+  background: var(--color-border);
+  flex-shrink: 0;
+}
+
+/* Main Chart Surface — Clean Centered Focus */
 .chart-panel {
   display: flex;
   flex-direction: column;
+  align-items: center;
   background: var(--color-bg-surface);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-xl);
-  padding: clamp(12px, 2.5vw, 24px);
+  padding: clamp(16px, 2.5vw, 28px);
   box-shadow: var(--shadow-md);
   position: relative;
   overflow: hidden;
@@ -167,45 +177,49 @@
 }
 
 /* ==========================================================================
-   Wide View (>= 1120px) — Strict 1-Row Format for Route + Direction + Metric
+   Responsive Breakpoints
    ========================================================================== */
-@media (min-width: 1120px) {
-  .controls-left {
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    flex-wrap: nowrap;
-    gap: 12px;
-    width: 100%;
+
+/* Tablet & Smaller (< 880px) */
+@media (max-width: 880px) {
+  .controls-divider {
+    display: none;
   }
 
-  .controls-left > div {
-    width: auto;
-    flex: 0 0 auto;
+  .controls-bar {
+    gap: 10px;
   }
 }
 
-/* ==========================================================================
-   Mobile Header (< 720px)
-   ========================================================================== */
-@media (max-width: 720px) {
+/* Mobile Header (< 768px) */
+@media (max-width: 768px) {
   .app-header {
-    flex-direction: column;
-    align-items: stretch;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
     gap: 10px;
+    padding: 10px 12px;
   }
 
   .brand-section {
-    justify-content: space-between;
-    width: 100%;
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .header-right {
+    grid-column: 2;
+    grid-row: 1;
   }
 
   .header-view-nav {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    max-width: 100%;
     width: 100%;
   }
 
   .chart-panel {
     border-radius: var(--radius-lg);
-    padding: 10px 8px;
+    padding: 14px 10px;
   }
 }

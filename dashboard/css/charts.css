@@ -2,28 +2,31 @@
    Modern Minimal Light Theme Chart Styles
    ========================================================================== */
 
-/* Responsive Decoupled HTML Chart Header (Zero Canvas Collision) */
+/* Responsive Decoupled HTML Chart Header (Zero Canvas Collision, Centered Alignment) */
 .chart-header-row {
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 12px;
-  margin-bottom: 12px;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+  margin-bottom: 16px;
   width: 100%;
   box-sizing: border-box;
-  flex-wrap: wrap;
 }
 
 .chart-header-text {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
   min-width: 0;
-  flex: 1 1 260px;
+  width: 100%;
+  max-width: 820px;
 }
 
 .chart-title-text {
-  font-size: clamp(0.96rem, 1.8vw, 1.15rem);
+  font-size: clamp(1rem, 2vw, 1.22rem);
   font-weight: 600;
   color: var(--color-text-primary);
   margin: 0;
@@ -36,17 +39,17 @@
   font-size: clamp(0.76rem, 1.2vw, 0.84rem);
   color: var(--color-text-muted);
   margin: 0;
-  line-height: 1.4;
+  line-height: 1.45;
   word-break: break-word;
 }
 
 .chart-header-meta {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  flex-shrink: 0;
-  align-self: flex-start;
-  margin-top: 2px;
+  flex-wrap: wrap;
+  margin-top: 4px;
 }
 
 .chart-meta-pill {
@@ -64,6 +67,11 @@
   letter-spacing: 0.01em;
 }
 
+.chart-meta-pill strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
 .chart-meta-dot {
   width: 6px;
   height: 6px;
@@ -75,6 +83,102 @@
 #chart-container {
   width: 100%;
   min-height: 280px;
+}
+
+/* Observable Plot Integration */
+#chart-container figure {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+#chart-container svg {
+  max-width: 100%;
+  height: auto;
+  font-family: var(--font-family-sans);
+  overflow: visible;
+}
+
+/* Ensure any Plot built-in legends are completely removed/hidden */
+#chart-container .plot-ramp,
+#chart-container .plot-legend,
+#chart-container [class*="-ramp"],
+#chart-container [class*="-swatches"] {
+  display: none !important;
+}
+
+/* Centered Range Statement (replacing legend with explicit Min and Max) */
+.chart-range-statement {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  color: var(--color-text-secondary);
+  user-select: none;
+  background: var(--color-bg-subtle);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+}
+
+.range-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.range-pill strong {
+  color: var(--color-text-primary);
+  font-weight: 600;
+}
+
+.range-sep {
+  color: var(--color-border);
+  font-size: 0.85rem;
+}
+
+.range-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.range-dot.min-dot,
+.chart-meta-dot.dot-min {
+  background: #059669;
+  box-shadow: 0 0 6px rgba(5, 150, 105, 0.4);
+}
+
+.range-dot.max-dot,
+.chart-meta-dot.dot-max {
+  background: #881337;
+  box-shadow: 0 0 6px rgba(136, 19, 55, 0.4);
+}
+
+/* Observable Plot Tip Mark Card */
+#chart-container g[aria-label="tip"] path {
+  filter: drop-shadow(0 4px 14px rgba(15, 23, 42, 0.12));
+}
+
+#chart-container g[aria-label="tip"] text {
+  font-family: var(--font-family-sans);
+  font-weight: 500;
+  fill: var(--color-text-primary);
+}
+
+#chart-container rect {
+  cursor: pointer;
+}
+
+#chart-container rect:hover {
+  stroke: #0f172a;
+  stroke-width: 1.5px;
 }
 
 @media (max-width: 640px) {

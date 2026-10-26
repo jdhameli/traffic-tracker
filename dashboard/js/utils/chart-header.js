@@ -13,7 +13,7 @@
  *    data and axes, making Y-axis title collisions impossible.
  */
 
-export function updateChartHeader({ title, subtitle, unit, metricLabel }) {
+export function updateChartHeader({ title, subtitle, unit, metricLabel, minVal, maxVal }) {
   const titleEl = document.getElementById('chart-header-title');
   const subtitleEl = document.getElementById('chart-header-subtitle');
   const metaEl = document.getElementById('chart-header-meta');
@@ -27,13 +27,30 @@ export function updateChartHeader({ title, subtitle, unit, metricLabel }) {
   }
 
   if (metaEl) {
-    if (unit) {
-      metaEl.innerHTML = `
-        <span class="chart-meta-pill" title="Metric Unit: ${metricLabel || unit}">
-          <span class="chart-meta-dot"></span>
-          <span>Unit: <strong>${unit}</strong></span>
+    const pills = [];
+
+    if (minVal !== undefined && minVal !== null && !isNaN(minVal)) {
+      const minFormatted = typeof minVal === 'number' ? `${minVal.toFixed(1)} ${unit || 'min'}` : minVal;
+      pills.push(`
+        <span class="chart-meta-pill" title="Minimum observed travel time">
+          <span class="chart-meta-dot dot-min"></span>
+          <span>Minimum: <strong>${minFormatted}</strong></span>
         </span>
-      `;
+      `);
+    }
+
+    if (maxVal !== undefined && maxVal !== null && !isNaN(maxVal)) {
+      const maxFormatted = typeof maxVal === 'number' ? `${maxVal.toFixed(1)} ${unit || 'min'}` : maxVal;
+      pills.push(`
+        <span class="chart-meta-pill" title="Maximum observed travel time">
+          <span class="chart-meta-dot dot-max"></span>
+          <span>Maximum: <strong>${maxFormatted}</strong></span>
+        </span>
+      `);
+    }
+
+    if (pills.length > 0) {
+      metaEl.innerHTML = pills.join('');
       metaEl.style.display = 'flex';
     } else {
       metaEl.innerHTML = '';

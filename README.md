@@ -41,17 +41,18 @@ traffic-tracker/
 
 ## 📈 Interactive Web Dashboard (GitHub Pages)
 
-An interactive, responsive analytics dashboard is included and ready to host directly via **GitHub Pages** (or run locally).
+An interactive, responsive travel time analytics dashboard powered by **Observable Plot**, ready to host directly via **GitHub Pages** (or run locally).
 
 ### Features
-1. **Universal EDT Time Mapping**: All timestamps, hourly bins, and day-of-week views are rendered in local Eastern Time (EDT).
-2. **Dynamic Route & Direction Switching**: Select any configured route and toggle between `Forward` ($A \rightarrow B$) and `Reverse` ($B \rightarrow A$) instantly.
-3. **4 Analytical Views**:
-   - **Congestion Delay Heatmap**: Day of Week (Sun–Sat) vs. Hour of Day (0–23 EDT) matrix colored by delay intensity with sample counts.
-   - **Daily View**: 24-hour time-of-day timeline with live points + **Historical Median Trendline** computed from previous matching days.
-   - **Weekly View**: 7-day progression + **Historical Weekly Median Baseline**.
-   - **Monthly View**: Calendar-day progression + **Historical Monthly Median Baseline**.
-4. **KPI Summary Cards**: Real-time stats for current delay, baseline freeflow, peak delay, and total samples.
+1. **Travel Time Focus**: Streamlined specifically for commute travel times (minutes) with zero clutter.
+2. **Universal EDT Time Mapping**: All timestamps, hourly bins, and day-of-week views are rendered in local Eastern Time (EDT).
+3. **Dynamic Route & Direction Switching**: Select any configured route and toggle between `Forward` ($A \rightarrow B$) and `Reverse` ($B \rightarrow A$) instantly.
+4. **3 Analytical Views**:
+   - **Daily View**: 24-hour continuous timeline of observed trips with an overlay of the historical hourly median baseline.
+   - **Weekly Heatmap**: Day of Week (Sun–Sat) vs. 48 thirty-minute commute intervals (defaulting to all-time historical median profile, or selectable sliding week).
+   - **Monthly Heatmap**: 28 consecutive days (4 full weeks) x 48 thirty-minute intervals with latest week anchored at the bottom, navigation by week or month, and 1-click drill-down to Daily View.
+5. **Interactive Square Inspections**: Every heatmap square includes detailed hover/tap tooltips (average, median, min-max range, observations).
+6. **Centered Balanced Layout**: Responsive single-tier controls bar, centered 3-zone header, and centered chart header with minimum/maximum indicators.
 
 ### 🚀 Running the Dashboard Locally
 ```bash

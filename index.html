@@ -6,7 +6,7 @@
     <title>Traffic Tracker — Commute & Congestion Analytics</title>
     <meta
       name="description"
-      content="Minimalist real-time traffic tracking dashboard with weekly, monthly, and yearly congestion heatmaps, and daily performance profiles."
+      content="Minimalist real-time traffic tracking dashboard with daily performance profiles, weekly heatmaps, and monthly commute heatmaps."
     />
     <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚦</text></svg>" />
 
@@ -25,8 +25,14 @@
     <link rel="stylesheet" href="./dashboard/css/charts.css" />
 
     <!-- External Libraries -->
-    <script src="https://cdn.jsdelivr.net/npm/echarts@5.5.0/dist/echarts.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "@observablehq/plot": "https://cdn.jsdelivr.net/npm/@observablehq/plot@0.6.17/+esm"
+        }
+      }
+    </script>
   </head>
   <body>
     <div class="app-wrapper">
@@ -39,24 +45,28 @@
             </svg>
           </div>
           <div class="brand-title">Traffic Tracker</div>
+        </div>
+
+        <!-- Centered View Navigation Tabs -->
+        <nav id="view-nav-container" class="header-view-nav" aria-label="Analytical Views"></nav>
+
+        <!-- Right Header Status Indicator -->
+        <div class="header-right">
           <div class="tz-pill" title="Rendered in Eastern Time">
             <span class="tz-dot"></span>
             <span>EDT</span>
           </div>
         </div>
-
-        <!-- View Navigation Tabs -->
-        <nav id="view-nav-container" class="header-view-nav" aria-label="Analytical Views"></nav>
       </header>
 
       <!-- Unified Minimal Controls Bar -->
-      <section class="controls-bar" aria-label="Route, Direction, Metric, and Date Controls">
-        <div class="controls-left">
+      <section class="controls-bar" aria-label="Route, Direction, and Date Controls">
+        <div class="controls-group controls-route-group">
           <div id="route-selector-container"></div>
           <div id="direction-toggle-container"></div>
-          <div id="metric-selector-container"></div>
         </div>
-        <div class="controls-right">
+        <div class="controls-divider" aria-hidden="true"></div>
+        <div class="controls-group controls-date-group">
           <div id="date-picker-container"></div>
         </div>
       </section>
