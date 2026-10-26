@@ -1975,3 +1975,5 @@ timestamp,route_id,direction,origin_id,origin_name,destination_id,destination_na
 2026-10-26T07:00:28.728Z,ROUTE_04,reverse,LOC_04,Location 4,LOC_01,Location 1,42.08,31.58,0,31.58,OK,
 2026-10-26T07:30:24.267Z,ROUTE_04,forward,LOC_01,Location 1,LOC_04,Location 4,38.3,28.13,0,28.13,OK,
 2026-10-26T07:30:24.729Z,ROUTE_04,reverse,LOC_04,Location 4,LOC_01,Location 1,42.08,31.57,0,31.57,OK,
+2026-10-26T08:00:29.454Z,ROUTE_04,forward,LOC_01,Location 1,LOC_04,Location 4,38.3,28.23,0,28.23,OK,
+2026-10-26T08:00:29.911Z,ROUTE_04,reverse,LOC_04,Location 4,LOC_01,Location 1,42.08,31.77,0,31.77,OK,
