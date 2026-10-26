@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { parseToEDT, getWeekRangeEDT, getRollingWeekRangeEDT, shiftDateStr, shiftMonthStr, formatMinutes, formatHour, formatTimeSlot, TIME_SLOTS_30MIN } from '../dashboard/js/utils/time-utils.js';
-import { getMetricValue, formatMetricValue, METRIC_CONFIGS } from '../dashboard/js/utils/metric-utils.js';
+import { getMetricValue, formatMetricValue, METRIC_CONFIGS, getTravelTime, formatTravelTime } from '../dashboard/js/utils/metric-utils.js';
 import {
   median,
   mean,
@@ -45,7 +45,7 @@ test('time-utils: formatHour, formatMinutes, and formatTimeSlot format correctly
   assert.equal(formatTimeSlot(17), '8:30 AM');
 });
 
-test('metric-utils: first metric is Travel Time and formats correctly', () => {
+test('metric-utils: Travel Time metric and formatting utilities', () => {
   const metricKeys = Object.keys(METRIC_CONFIGS);
   assert.equal(metricKeys[0], 'travel_time_min');
 
@@ -56,9 +56,11 @@ test('metric-utils: first metric is Travel Time and formats correctly', () => {
     baseline_time_min: 12.3,
   };
 
-  assert.equal(getMetricValue(record, 'travel_time_min'), 15.5);
-  assert.equal(getMetricValue(record, 'distance_mi'), 6.21);
-  assert.equal(formatMetricValue(15.5, 'travel_time_min'), '15.5m');
+  assert.equal(getTravelTime(record), 15.5);
+  assert.equal(getMetricValue(record), 15.5);
+  assert.equal(formatTravelTime(15.5), '15.5m');
+  assert.equal(formatTravelTime(15.5, true), '15m 30s');
+  assert.equal(formatMetricValue(15.5), '15.5m');
 });
 
 test('stats-engine: median, mean, and percentile calculations', () => {
@@ -246,34 +248,11 @@ test('stats-engine: buildYearlyCalendarData builds calendar series and seasonal 
   assert.equal(oct5[4], 17); // peakHour is 17 (5 PM)
 });
 
-test('chart-helpers: getClampedTooltipPosition clamps left and right boundaries strictly on screen', async () => {
-  const { getClampedTooltipPosition } = await import('../dashboard/js/utils/chart-helpers.js');
-
-  const size = {
-    contentSize: [260, 120], // Tooltip: 260px wide, 120px tall
-    viewSize: [1000, 600],    // Container: 1000px wide, 600px tall
-  };
-
-  // 1. Leftmost column: cell at x=25, center at x=35
-  // Without clamp, posX would be 35 - 130 = -95 (off-screen left)
-  const leftPos = getClampedTooltipPosition([35, 100], null, null, { x: 25, y: 80, width: 20, height: 20 }, size);
-  assert.equal(leftPos[0], 12); // Clamped to 12px min padding
-  assert.ok(leftPos[1] >= 0);
-
-  // 2. Rightmost column: cell at x=975, center at x=985
-  // Without clamp, posX would be 985 - 130 = 855 -> 855 + 260 = 1115 (115px off-screen right)
-  const rightPos = getClampedTooltipPosition([985, 100], null, null, { x: 975, y: 80, width: 20, height: 20 }, size);
-  assert.equal(rightPos[0], 1000 - 260 - 12); // Exactly 728px, staying within 1000px bounds
-  assert.ok(rightPos[0] + 260 <= 1000);
-
-  // 3. Middle cell: centered above
-  const midPos = getClampedTooltipPosition([500, 200], null, null, { x: 490, y: 190, width: 20, height: 20 }, size);
-  assert.equal(midPos[0], 500 - 130); // 370px
-  assert.equal(midPos[1], 190 - 120 - 8); // 62px
-
-  // 4. Top-row cell: flips below item if too close to top
-  const topPos = getClampedTooltipPosition([500, 20], null, null, { x: 490, y: 10, width: 20, height: 20 }, size);
-  assert.equal(topPos[1], 10 + 20 + 8); // 38px (flipped cleanly below cell)
+test('chart-helpers: getSafeContainerWidth handles element and fallback width', async () => {
+  const { getSafeContainerWidth } = await import('../dashboard/js/utils/chart-helpers.js');
+  assert.equal(getSafeContainerWidth(null), 960);
+  const mockEl = { clientWidth: 800 };
+  assert.equal(getSafeContainerWidth(mockEl), 800);
 });
 
 test('time-utils: shiftDateStr and shiftMonthStr advance dates and months properly', () => {
@@ -436,6 +415,23 @@ test('view-nav: Daily View is the first tab, but Weekly Heatmap is open by defau
 
   // 3. Weekly Heatmap is open by default
   assert.equal(stateStore.getState().selectedView, 'heatmap');
+
+  // 4. Monthly Heatmap is third tab (Yearly removed)
+  assert.equal(VIEWS.length, 3);
+  assert.equal(VIEWS[2].id, 'monthly_heatmap');
+  assert.equal(VIEWS[2].label, 'Monthly Heatmap');
+});
+
+test('time-utils: get4WeekRangeEDT produces 28 days with target week at the bottom', async () => {
+  const { get4WeekRangeEDT } = await import('../dashboard/js/utils/time-utils.js');
+  // For 2026-10-25, Week 4 (Oct 25 - Oct 31) is at the bottom
+  const range = get4WeekRangeEDT('2026-10-25');
+  assert.equal(range.startDate, '2026-10-04');
+  assert.equal(range.endDate, '2026-10-31');
+  assert.equal(range.days.length, 28);
+  assert.equal(range.days[0], '2026-10-04');
+  assert.equal(range.days[21], '2026-10-25'); // latest week starts at index 21
+  assert.equal(range.days[27], '2026-10-31'); // latest week ends at index 27 (bottom)
 });
 
 

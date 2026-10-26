@@ -1,10 +1,10 @@
 /**
- * Statistical calculations and median baseline computation engine.
- * Supports configurable metrics (traffic_delay_min, travel_time_min, baseline_time_min, distance_mi).
+ * Statistical calculations and travel time aggregation engine.
+ * Focused exclusively on Travel Time (travel_time_min).
  */
 
 import { parseToEDT, DAYS_OF_WEEK, getWeekRangeEDT, HOURS_OF_DAY, TIME_SLOTS_30MIN } from './time-utils.js';
-import { getMetricValue } from './metric-utils.js';
+import { getTravelTime } from './metric-utils.js';
 
 /**
  * Calculates the mathematical median of an array of numbers.
@@ -18,7 +18,7 @@ export function median(numbers) {
   if (sorted.length % 2 !== 0) {
     return sorted[mid];
   }
-  return (sorted[mid - 1] + sorted[mid]) / 2;
+  return Number(((sorted[mid - 1] + sorted[mid]) / 2).toFixed(2));
 }
 
 /**
@@ -29,7 +29,7 @@ export function median(numbers) {
 export function mean(numbers) {
   if (!numbers || numbers.length === 0) return null;
   const sum = numbers.reduce((acc, val) => acc + val, 0);
-  return sum / numbers.length;
+  return Number((sum / numbers.length).toFixed(2));
 }
 
 /**
@@ -43,26 +43,65 @@ export function percentile(numbers, p) {
   const upper = Math.ceil(index);
   const weight = index - lower;
   if (lower === upper) return sorted[lower];
-  return sorted[lower] * (1 - weight) + sorted[upper] * weight;
+  return Number((sorted[lower] * (1 - weight) + sorted[upper] * weight).toFixed(2));
 }
 
 /**
- * Aggregates records into a 7x48 Heatmap Matrix (Day of Week vs 30-Minute Time Slot EDT) for any selected metric.
- * Supports week filtering and all-time median aggregation.
- * @param {Array<Object>} records - Raw parsed CSV records with EDT metadata
- * @param {string} metricKey - e.g. 'travel_time_min', 'traffic_delay_min', 'baseline_time_min', 'distance_mi'
- * @param {Object} [options] - Optional settings { weekDays?: string[], useMedian?: boolean }
- * @returns {Array<[number, number, number, number, number, number]>} - [slotIndex, dayOfWeekIndex, displayVal, count, medianVal, avgVal]
+ * Creates a cell data object that supports both named property access for Observable Plot
+ * and array-style numeric indexing / iterable destructuring for backward compatibility.
  */
-export function buildHeatmapMatrix(records, metricKey = 'travel_time_min', options = {}) {
+function createHeatmapCell({
+  slot,
+  day,
+  dayLabel,
+  dateStr = '',
+  displayVal,
+  count,
+  medVal,
+  avgVal,
+  maxVal = null,
+  minVal = null,
+  isWeekend = false,
+}) {
+  // Array format: [slot, day, displayVal, count, medVal, avgVal, maxVal, dateStr]
+  const cell = [slot, day, displayVal, count, medVal, avgVal, maxVal, dateStr];
+  cell.slot = slot;
+  cell.day = day;
+  cell.dayLabel = dayLabel;
+  cell.dateStr = dateStr;
+  cell.value = displayVal;
+  cell.count = count;
+  cell.median = medVal;
+  cell.mean = avgVal;
+  cell.max = maxVal;
+  cell.min = minVal;
+  cell.isWeekend = isWeekend;
+  return cell;
+}
+
+/**
+ * Aggregates records into 30-Minute Time Slots x Day of Week for Travel Time.
+ * Supports week filtering and all-time median aggregation.
+ *
+ * @param {Array<Object>} records - Raw parsed CSV records with EDT metadata
+ * @param {string|Object} [metricKeyOrOptions] - Options or metricKey compatibility
+ * @param {Object} [maybeOptions] - Optional settings { weekDays?: string[], useMedian?: boolean }
+ * @returns {Array<Object>}
+ */
+export function buildHeatmapMatrix(records, metricKeyOrOptions = {}, maybeOptions = {}) {
+  const options =
+    typeof metricKeyOrOptions === 'object' && metricKeyOrOptions !== null
+      ? metricKeyOrOptions
+      : maybeOptions || {};
+
   const { weekDays = null, useMedian = false } = options;
 
-  let targetRecords = records;
+  let targetRecords = records || [];
   const dateToIndexMap = new Map();
   if (weekDays && weekDays.length > 0 && !useMedian) {
     weekDays.forEach((dStr, idx) => dateToIndexMap.set(dStr, idx));
     const weekSet = new Set(weekDays);
-    targetRecords = records.filter((r) => weekSet.has(r.edt.edtDateStr));
+    targetRecords = targetRecords.filter((r) => r.edt && weekSet.has(r.edt.edtDateStr));
   }
 
   // 7 days x 48 30-min slots (0-47)
@@ -73,7 +112,7 @@ export function buildHeatmapMatrix(records, metricKey = 'travel_time_min', optio
   );
 
   for (const r of targetRecords) {
-    if (r.status !== 'OK') continue;
+    if (r.status !== 'OK' || !r.edt) continue;
     let day = -1;
     if (dateToIndexMap.size > 0) {
       day = dateToIndexMap.has(r.edt.edtDateStr) ? dateToIndexMap.get(r.edt.edtDateStr) : -1;
@@ -82,21 +121,45 @@ export function buildHeatmapMatrix(records, metricKey = 'travel_time_min', optio
     }
     const slot = r.edt.edtHour * 2 + (r.edt.edtMinute >= 30 ? 1 : 0);
     if (day >= 0 && day < 7 && slot >= 0 && slot < 48) {
-      const val = getMetricValue(r, metricKey);
+      const val = getTravelTime(r);
       buckets[day][slot].values.push(val);
     }
   }
 
   const result = [];
   for (let d = 0; d < 7; d++) {
+    const dayName = DAYS_OF_WEEK[d];
+    const dateStr = weekDays && weekDays[d] ? weekDays[d] : '';
+    const dayLabel = useMedian
+      ? dayName
+      : dateStr
+      ? `${dayName} ${dateStr.substring(5)}`
+      : dayName;
+
     for (let s = 0; s < 48; s++) {
       const b = buckets[d][s];
       const count = b.values.length;
-      const avgVal = count > 0 ? Number(mean(b.values).toFixed(2)) : 0;
-      const medVal = count > 0 ? Number(median(b.values).toFixed(2)) : 0;
-      const displayVal = useMedian ? medVal : avgVal;
-      // [xIndex (slotIndex), yIndex (day), displayVal, count, medVal, avgVal]
-      result.push([s, d, displayVal, count, medVal, avgVal]);
+      const avgVal = count > 0 ? mean(b.values) : null;
+      const medVal = count > 0 ? median(b.values) : null;
+      const maxVal = count > 0 ? Number(Math.max(...b.values).toFixed(2)) : null;
+      const minVal = count > 0 ? Number(Math.min(...b.values).toFixed(2)) : null;
+      const displayVal = count > 0 ? (useMedian ? medVal : avgVal) : null;
+
+      result.push(
+        createHeatmapCell({
+          slot: s,
+          day: d,
+          dayLabel,
+          dateStr,
+          displayVal: count > 0 ? displayVal : 0,
+          count,
+          medVal: medVal || 0,
+          avgVal: avgVal || 0,
+          maxVal,
+          minVal,
+          isWeekend: d === 0 || d === 6,
+        })
+      );
     }
   }
 
@@ -104,19 +167,16 @@ export function buildHeatmapMatrix(records, metricKey = 'travel_time_min', optio
 }
 
 /**
- * Computes the Daily View data for the configured metric:
+ * Computes Daily View data for Travel Time:
  * - Actual records on targetDate
  * - Historical median baseline across prior days for each hour
- * @param {Array<Object>} records
- * @param {string} targetDate - 'YYYY-MM-DD' in EDT
- * @param {string} metricKey
  */
-export function computeDailyViewData(records, targetDate, metricKey = 'traffic_delay_min') {
+export function computeDailyViewData(records, targetDate) {
   const dayRecords = [];
   const priorRecords = [];
 
-  for (const r of records) {
-    if (r.status !== 'OK') continue;
+  for (const r of records || []) {
+    if (r.status !== 'OK' || !r.edt) continue;
     if (r.edt.edtDateStr === targetDate) {
       dayRecords.push(r);
     } else if (r.edt.edtDateStr < targetDate) {
@@ -134,14 +194,15 @@ export function computeDailyViewData(records, targetDate, metricKey = 'traffic_d
 
   for (const r of priorRecords) {
     const h = r.edt.edtHour;
-    const val = getMetricValue(r, metricKey);
-    hourBuckets[h].values.push(val);
+    if (h >= 0 && h < 24) {
+      hourBuckets[h].values.push(getTravelTime(r));
+    }
   }
 
   const hourlyMedianBaseline = hourBuckets.map((b, hour) => {
     return {
       hour,
-      medianValue: b.values.length > 0 ? Number(median(b.values).toFixed(2)) : null,
+      medianValue: b.values.length > 0 ? median(b.values) : null,
       sampleCount: b.values.length,
     };
   });
@@ -151,26 +212,20 @@ export function computeDailyViewData(records, targetDate, metricKey = 'traffic_d
     dayRecords,
     hourlyMedianBaseline,
     hasPriorData: priorRecords.length > 0,
-    metricKey,
+    metricKey: 'travel_time_min',
   };
 }
 
 /**
- * Computes the Weekly View data for the configured metric:
- * - 7 days of the target week (binned by day-of-week)
- * - Historical weekly median profile computed from weeks prior to this week
- * @param {Array<Object>} records
- * @param {string} targetDateInWeek - any date in target week (YYYY-MM-DD)
- * @param {string} metricKey
+ * Computes Weekly View summary data for Travel Time.
  */
-export function computeWeeklyViewData(records, targetDateInWeek, metricKey = 'traffic_delay_min') {
+export function computeWeeklyViewData(records, targetDateInWeek) {
   const { startDate, endDate, days } = getWeekRangeEDT(targetDateInWeek);
-
   const weekRecords = [];
   const priorRecords = [];
 
-  for (const r of records) {
-    if (r.status !== 'OK') continue;
+  for (const r of records || []) {
+    if (r.status !== 'OK' || !r.edt) continue;
     const dStr = r.edt.edtDateStr;
     if (dStr >= startDate && dStr <= endDate) {
       weekRecords.push(r);
@@ -179,42 +234,34 @@ export function computeWeeklyViewData(records, targetDateInWeek, metricKey = 'tr
     }
   }
 
-  // Group week records by day-of-week
   const weekDaysData = days.map((dateStr, dayIdx) => {
     const dayRecs = weekRecords.filter((r) => r.edt.edtDateStr === dateStr);
-    const vals = dayRecs.map((r) => getMetricValue(r, metricKey));
+    const vals = dayRecs.map((r) => getTravelTime(r));
 
     return {
       dateStr,
       dayOfWeekIndex: dayIdx,
       dayName: DAYS_OF_WEEK[dayIdx],
       count: dayRecs.length,
-      avgValue: vals.length > 0 ? Number(mean(vals).toFixed(2)) : null,
-      medianValue: vals.length > 0 ? Number(median(vals).toFixed(2)) : null,
+      avgValue: vals.length > 0 ? mean(vals) : null,
+      medianValue: vals.length > 0 ? median(vals) : null,
       maxValue: vals.length > 0 ? Number(Math.max(...vals).toFixed(2)) : null,
+      minValue: vals.length > 0 ? Number(Math.min(...vals).toFixed(2)) : null,
       records: dayRecs,
     };
   });
 
-  // Historical baseline for each day of week (0 to 6)
-  const priorDayBuckets = Array.from({ length: 7 }, () => ({
-    values: [],
-  }));
-
+  const priorDayBuckets = Array.from({ length: 7 }, () => ({ values: [] }));
   for (const r of priorRecords) {
-    const d = r.edt.edtDayOfWeek;
-    const val = getMetricValue(r, metricKey);
-    priorDayBuckets[d].values.push(val);
+    priorDayBuckets[r.edt.edtDayOfWeek].values.push(getTravelTime(r));
   }
 
-  const weeklyMedianBaseline = priorDayBuckets.map((b, dayIdx) => {
-    return {
-      dayOfWeekIndex: dayIdx,
-      dayName: DAYS_OF_WEEK[dayIdx],
-      medianValue: b.values.length > 0 ? Number(median(b.values).toFixed(2)) : null,
-      sampleCount: b.values.length,
-    };
-  });
+  const weeklyMedianBaseline = priorDayBuckets.map((b, dayIdx) => ({
+    dayOfWeekIndex: dayIdx,
+    dayName: DAYS_OF_WEEK[dayIdx],
+    medianValue: b.values.length > 0 ? median(b.values) : null,
+    sampleCount: b.values.length,
+  }));
 
   return {
     startDate,
@@ -224,24 +271,19 @@ export function computeWeeklyViewData(records, targetDateInWeek, metricKey = 'tr
     weekRecords,
     weeklyMedianBaseline,
     hasPriorData: priorRecords.length > 0,
-    metricKey,
+    metricKey: 'travel_time_min',
   };
 }
 
 /**
- * Computes Monthly View data for the configured metric:
- * - Daily aggregates across targetMonth (YYYY-MM)
- * - Historical monthly baseline computed from prior months
- * @param {Array<Object>} records
- * @param {string} targetMonth - 'YYYY-MM'
- * @param {string} metricKey
+ * Computes Monthly View summary data for Travel Time.
  */
-export function computeMonthlyViewData(records, targetMonth, metricKey = 'traffic_delay_min') {
+export function computeMonthlyViewData(records, targetMonth) {
   const monthRecords = [];
   const priorRecords = [];
 
-  for (const r of records) {
-    if (r.status !== 'OK') continue;
+  for (const r of records || []) {
+    if (r.status !== 'OK' || !r.edt) continue;
     if (r.edt.edtMonthStr === targetMonth) {
       monthRecords.push(r);
     } else if (r.edt.edtMonthStr < targetMonth) {
@@ -249,7 +291,6 @@ export function computeMonthlyViewData(records, targetMonth, metricKey = 'traffi
     }
   }
 
-  // Get number of days in target month
   const [y, m] = targetMonth.split('-').map(Number);
   const daysInMonth = new Date(y, m, 0).getDate();
 
@@ -257,23 +298,22 @@ export function computeMonthlyViewData(records, targetMonth, metricKey = 'traffi
   for (let day = 1; day <= daysInMonth; day++) {
     const dayStr = `${targetMonth}-${String(day).padStart(2, '0')}`;
     const dayRecs = monthRecords.filter((r) => r.edt.edtDateStr === dayStr);
-    const vals = dayRecs.map((r) => getMetricValue(r, metricKey));
+    const vals = dayRecs.map((r) => getTravelTime(r));
 
     daysData.push({
       day,
       dateStr: dayStr,
       count: dayRecs.length,
-      avgValue: vals.length > 0 ? Number(mean(vals).toFixed(2)) : null,
-      medianValue: vals.length > 0 ? Number(median(vals).toFixed(2)) : null,
+      avgValue: vals.length > 0 ? mean(vals) : null,
+      medianValue: vals.length > 0 ? median(vals) : null,
       maxValue: vals.length > 0 ? Number(Math.max(...vals).toFixed(2)) : null,
+      minValue: vals.length > 0 ? Number(Math.min(...vals).toFixed(2)) : null,
     });
   }
 
-  // Historical monthly baseline: median of chosen metric computed from prior records
-  const priorVals = priorRecords.map((r) => getMetricValue(r, metricKey));
-
+  const priorVals = priorRecords.map((r) => getTravelTime(r));
   const monthlyMedianBaseline = {
-    medianValue: priorVals.length > 0 ? Number(median(priorVals).toFixed(2)) : null,
+    medianValue: priorVals.length > 0 ? median(priorVals) : null,
     sampleCount: priorRecords.length,
   };
 
@@ -284,21 +324,19 @@ export function computeMonthlyViewData(records, targetMonth, metricKey = 'traffi
     monthRecords,
     monthlyMedianBaseline,
     hasPriorData: priorRecords.length > 0,
-    metricKey,
+    metricKey: 'travel_time_min',
   };
 }
 
 /**
- * Aggregates records for a specified month (YYYY-MM) into a Day of Month (1-31) x 30-min Interval (0-47) Matrix.
- * Also computes daily summaries, peak hours, and monthly stats.
- *
- * @param {Array<Object>} records - Raw parsed CSV records with EDT metadata
- * @param {string} targetMonth - 'YYYY-MM'
- * @param {string} metricKey - e.g. 'travel_time_min', 'traffic_delay_min'
- * @param {Object} [options] - Optional settings { useMedian?: boolean }
- * @returns {Object}
+ * Aggregates records for a month into Day x 30-min Interval Matrix & Calendar format.
  */
-export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKey = 'travel_time_min', options = {}) {
+export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKeyOrOptions = {}, maybeOptions = {}) {
+  const options =
+    typeof metricKeyOrOptions === 'object' && metricKeyOrOptions !== null
+      ? metricKeyOrOptions
+      : maybeOptions || {};
+
   const { useMedian = false, numDays = 28, allTime = false } = options;
 
   let daysList = [];
@@ -314,7 +352,6 @@ export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKey = 'tra
     daysList = targetMonth;
   } else if (typeof targetMonth === 'string') {
     if (targetMonth.length === 7) {
-      // Calendar month 'YYYY-MM'
       isFixedCalendarMonth = true;
       const [y, m] = targetMonth.split('-').map(Number);
       const totalDays = new Date(y, m, 0).getDate();
@@ -324,7 +361,6 @@ export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKey = 'tra
       const mObj = new Date(Date.UTC(y, m - 1, 1, 12, 0, 0));
       targetLabel = mObj.toLocaleString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' });
     } else {
-      // Date string 'YYYY-MM-DD' representing start of 28-day (4-week) window
       const [y, m, d] = targetMonth.split('-').map(Number);
       const start = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
       for (let i = 0; i < numDays; i++) {
@@ -352,11 +388,9 @@ export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKey = 'tra
     );
   }
 
-  // Initialize day x 30-min slot buckets: daysInMonth rows x 48 columns
   const buckets = Array.from({ length: daysInMonth }, () =>
     Array.from({ length: 48 }, () => ({
       values: [],
-      records: [],
     }))
   );
 
@@ -364,13 +398,10 @@ export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKey = 'tra
     const dayIdx = allTime ? (r.edt.edtDay - 1) : dateToIndexMap.get(r.edt.edtDateStr);
     const slot = r.edt.edtHour * 2 + (r.edt.edtMinute >= 30 ? 1 : 0);
     if (dayIdx !== undefined && dayIdx >= 0 && dayIdx < daysInMonth && slot >= 0 && slot < 48) {
-      const val = getMetricValue(r, metricKey);
-      buckets[dayIdx][slot].values.push(val);
-      buckets[dayIdx][slot].records.push(r);
+      buckets[dayIdx][slot].values.push(getTravelTime(r));
     }
   }
 
-  // Days list & metadata
   const calendarDays = [];
   const matrixData = [];
   const dayLabels = [];
@@ -387,6 +418,8 @@ export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKey = 'tra
     if (allTime) {
       dateStr = `Day ${String(d).padStart(2, '0')}`;
       label = `Day ${String(d).padStart(2, '0')}`;
+      dayOfWeek = (idx % 7);
+      dayOfWeekName = DAYS_OF_WEEK[dayOfWeek];
     } else {
       dateStr = daysList[idx];
       const [y, m, dayNum] = dateStr.split('-').map(Number);
@@ -414,12 +447,27 @@ export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKey = 'tra
       const b = buckets[idx][s];
       const count = b.values.length;
       if (count > 0) {
-        const avgVal = Number(mean(b.values).toFixed(2));
-        const medVal = Number(median(b.values).toFixed(2));
+        const avgVal = mean(b.values);
+        const medVal = median(b.values);
         const maxVal = Number(Math.max(...b.values).toFixed(2));
-        const displayVal = (allTime || useMedian) ? medVal : avgVal;
+        const minVal = Number(Math.min(...b.values).toFixed(2));
+        const displayVal = allTime || useMedian ? medVal : avgVal;
 
-        matrixData.push([s, idx, displayVal, count, medVal, avgVal, maxVal, dateStr]);
+        matrixData.push(
+          createHeatmapCell({
+            slot: s,
+            day: idx,
+            dayLabel: label,
+            dateStr,
+            displayVal,
+            count,
+            medVal,
+            avgVal,
+            maxVal,
+            minVal,
+            isWeekend,
+          })
+        );
         allDayValues.push(...b.values);
 
         if (maxVal > dayPeakVal) {
@@ -427,8 +475,21 @@ export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKey = 'tra
           dayPeakSlot = s;
         }
       } else {
-        // Empty cell
-        matrixData.push([s, idx, null, 0, null, null, null, dateStr]);
+        matrixData.push(
+          createHeatmapCell({
+            slot: s,
+            day: idx,
+            dayLabel: label,
+            dateStr,
+            displayVal: null,
+            count: 0,
+            medVal: null,
+            avgVal: null,
+            maxVal: null,
+            minVal: null,
+            isWeekend,
+          })
+        );
       }
     }
 
@@ -442,16 +503,17 @@ export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKey = 'tra
       dayOfWeekName,
       isWeekend,
       count: dayCount,
-      avgValue: dayCount > 0 ? Number(mean(allDayValues).toFixed(2)) : null,
-      medianValue: dayCount > 0 ? Number(median(allDayValues).toFixed(2)) : null,
+      avgValue: dayCount > 0 ? mean(allDayValues) : null,
+      medianValue: dayCount > 0 ? median(allDayValues) : null,
       maxValue: dayCount > 0 ? Number(Math.max(...allDayValues).toFixed(2)) : null,
+      minValue: dayCount > 0 ? Number(Math.min(...allDayValues).toFixed(2)) : null,
       peakSlot: dayPeakSlot,
       peakHour: dayPeakSlot !== null ? Math.floor(dayPeakSlot / 2) : null,
+      weekRow: Math.floor(idx / 7),
     });
   }
 
-  // Monthly summary stats
-  const allMonthValues = monthRecords.map((r) => getMetricValue(r, metricKey));
+  const allMonthValues = monthRecords.map((r) => getTravelTime(r));
   const validDays = calendarDays.filter((d) => d.count > 0);
   let worstDay = null;
   let bestDay = null;
@@ -464,9 +526,10 @@ export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKey = 'tra
     totalObservations: monthRecords.length,
     activeDaysCount: validDays.length,
     daysInMonth,
-    avgValue: allMonthValues.length > 0 ? Number(mean(allMonthValues).toFixed(2)) : null,
-    medianValue: allMonthValues.length > 0 ? Number(median(allMonthValues).toFixed(2)) : null,
+    avgValue: allMonthValues.length > 0 ? mean(allMonthValues) : null,
+    medianValue: allMonthValues.length > 0 ? median(allMonthValues) : null,
     maxValue: allMonthValues.length > 0 ? Number(Math.max(...allMonthValues).toFixed(2)) : null,
+    minValue: allMonthValues.length > 0 ? Number(Math.min(...allMonthValues).toFixed(2)) : null,
     worstDay,
     bestDay,
   };
@@ -483,25 +546,21 @@ export function buildMonthlyHeatmapMatrix(records, targetMonth, metricKey = 'tra
     matrixData,
     calendarDays,
     monthlyStats,
-    metricKey,
+    metricKey: 'travel_time_min',
   };
 }
 
 /**
- * Aggregates records for a specified year (YYYY) or 12-month period (ending on YYYY-MM) into:
- * 1. 365-day calendar series formatted for ECharts calendar heatmap coordinate system.
- * 2. 12 Months x 24 Hours Seasonal Heatmap matrix.
- * 3. Monthly breakdown & annual stats.
- *
- * @param {Array<Object>} records - Raw parsed CSV records with EDT metadata
- * @param {string|number} targetYear - e.g. '2026' or '2026-10'
- * @param {string} metricKey - e.g. 'travel_time_min', 'traffic_delay_min'
- * @param {Object} [options] - Optional settings { metricAggregation?: 'avg' | 'peak', allTime?: boolean }
- * @returns {Object}
+ * Aggregates records for a specified year or 12-month period.
  */
-export function buildYearlyCalendarData(records, targetYear, metricKey = 'travel_time_min', options = {}) {
+export function buildYearlyCalendarData(records, targetYear, metricKeyOrOptions = {}, maybeOptions = {}) {
+  const options =
+    typeof metricKeyOrOptions === 'object' && metricKeyOrOptions !== null
+      ? metricKeyOrOptions
+      : maybeOptions || {};
+
   const { metricAggregation = 'avg', allTime = false } = options;
-  const yearStr = String(targetYear);
+  const yearStr = String(targetYear || '2026');
 
   let yearRecords = [];
   const monthsList = [];
@@ -526,11 +585,8 @@ export function buildYearlyCalendarData(records, targetYear, metricKey = 'travel
       endDate = '2026-12-31';
     }
   } else if (yearStr.length === 4) {
-    // 4-digit year 'YYYY' (calendar year Jan-Dec)
     const yr = parseInt(yearStr, 10);
-    yearRecords = (records || []).filter(
-      (r) => r.status === 'OK' && r.edt && r.edt.edtYear === yr
-    );
+    yearRecords = (records || []).filter((r) => r.status === 'OK' && r.edt && r.edt.edtYear === yr);
     for (let m = 1; m <= 12; m++) {
       const mStr = `${yearStr}-${String(m).padStart(2, '0')}`;
       const mDate = new Date(Date.UTC(yr, m - 1, 1, 12, 0, 0));
@@ -541,7 +597,6 @@ export function buildYearlyCalendarData(records, targetYear, metricKey = 'travel
     endDate = `${yearStr}-12-31`;
     targetLabel = yearStr;
   } else {
-    // 12-month rolling window ending on targetMonth 'YYYY-MM'
     const [y, m] = yearStr.split('-').map(Number);
     for (let i = 11; i >= 0; i--) {
       const dt = new Date(Date.UTC(y, m - 1 - i, 1, 12, 0, 0));
@@ -573,18 +628,18 @@ export function buildYearlyCalendarData(records, targetYear, metricKey = 'travel
     dateMap.get(dStr).push(r);
   }
 
-  // Build calendar series data: [ [dateStr, displayVal, count, peakVal, peakHour, avgVal, medVal], ... ]
   const calendarData = [];
   for (const [dateStr, recs] of dateMap.entries()) {
-    const values = recs.map((r) => getMetricValue(r, metricKey));
-    const avgVal = Number(mean(values).toFixed(2));
-    const medVal = Number(median(values).toFixed(2));
+    const values = recs.map((r) => getTravelTime(r));
+    const avgVal = mean(values);
+    const medVal = median(values);
     const peakVal = Number(Math.max(...values).toFixed(2));
+    const minVal = Number(Math.min(...values).toFixed(2));
 
     let peakHour = null;
     let maxHourVal = -Infinity;
     for (const r of recs) {
-      const v = getMetricValue(r, metricKey);
+      const v = getTravelTime(r);
       if (v > maxHourVal) {
         maxHourVal = v;
         peakHour = r.edt.edtHour;
@@ -592,11 +647,27 @@ export function buildYearlyCalendarData(records, targetYear, metricKey = 'travel
     }
 
     const displayVal = metricAggregation === 'peak' ? peakVal : (allTime ? medVal : avgVal);
-    calendarData.push([dateStr, displayVal, recs.length, peakVal, peakHour, avgVal, medVal]);
+
+    // Array format: [dateStr, displayVal, count, peakVal, peakHour, avgVal, medVal]
+    const cell = [dateStr, displayVal, recs.length, peakVal, peakHour, avgVal, medVal];
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const dateObj = new Date(Date.UTC(y, m - 1, d, 12, 0, 0));
+    cell.dateStr = dateStr;
+    cell.date = dateObj;
+    cell.value = displayVal;
+    cell.count = recs.length;
+    cell.peakValue = peakVal;
+    cell.peakHour = peakHour;
+    cell.mean = avgVal;
+    cell.median = medVal;
+    cell.min = minVal;
+    cell.max = peakVal;
+    cell.dayOfWeek = dateObj.getUTCDay();
+    cell.month = dateObj.getUTCMonth();
+    calendarData.push(cell);
   }
 
-  // Build 12 Months x 24 Hours Seasonal Matrix
-  // 12 rows (0..11 for each month in monthsList) x 24 columns (0..23)
+  // 12 Months x 24 Hours Seasonal Matrix
   const monthHourBuckets = Array.from({ length: 12 }, () =>
     Array.from({ length: 24 }, () => ({
       values: [],
@@ -610,45 +681,71 @@ export function buildYearlyCalendarData(records, targetYear, metricKey = 'travel
     const rowIdx = allTime ? (r.edt.edtMonth - 1) : monthStrToRowMap.get(r.edt.edtMonthStr);
     const hIdx = r.edt.edtHour;
     if (rowIdx !== undefined && rowIdx >= 0 && rowIdx < 12 && hIdx >= 0 && hIdx < 24) {
-      monthHourBuckets[rowIdx][hIdx].values.push(getMetricValue(r, metricKey));
+      monthHourBuckets[rowIdx][hIdx].values.push(getTravelTime(r));
     }
   }
 
   const monthHourMatrix = [];
   for (let m = 0; m < 12; m++) {
+    const monthName = monthsList[m]?.monthName || '';
+    const monthStr = monthsList[m]?.monthStr || '';
+
     for (let h = 0; h < 24; h++) {
       const b = monthHourBuckets[m][h];
       const count = b.values.length;
       if (count > 0) {
-        const avgVal = Number(mean(b.values).toFixed(2));
-        const medVal = Number(median(b.values).toFixed(2));
+        const avgVal = mean(b.values);
+        const medVal = median(b.values);
         const maxVal = Number(Math.max(...b.values).toFixed(2));
+        const minVal = Number(Math.min(...b.values).toFixed(2));
         const displayVal = metricAggregation === 'peak' ? maxVal : (allTime ? medVal : avgVal);
-        monthHourMatrix.push([h, m, displayVal, count, medVal, avgVal, maxVal]);
+
+        const cell = [h, m, displayVal, count, medVal, avgVal, maxVal];
+        cell.hour = h;
+        cell.monthIdx = m;
+        cell.monthName = monthName;
+        cell.monthStr = monthStr;
+        cell.value = displayVal;
+        cell.count = count;
+        cell.median = medVal;
+        cell.mean = avgVal;
+        cell.max = maxVal;
+        cell.min = minVal;
+        monthHourMatrix.push(cell);
       } else {
-        monthHourMatrix.push([h, m, -1, 0, null, null, null]);
+        const cell = [h, m, -1, 0, null, null, null];
+        cell.hour = h;
+        cell.monthIdx = m;
+        cell.monthName = monthName;
+        cell.monthStr = monthStr;
+        cell.value = null;
+        cell.count = 0;
+        cell.median = null;
+        cell.mean = null;
+        cell.max = null;
+        cell.min = null;
+        monthHourMatrix.push(cell);
       }
     }
   }
 
-  // Monthly summary
   const monthSummary = monthsList.map((item, idx) => {
     const mRecs = allTime
       ? yearRecords.filter((r) => r.edt.edtMonth === idx + 1)
       : yearRecords.filter((r) => r.edt.edtMonthStr === item.monthStr);
-    const vals = mRecs.map((r) => getMetricValue(r, metricKey));
+    const vals = mRecs.map((r) => getTravelTime(r));
     return {
       monthIndex: idx,
       monthStr: item.monthStr,
       monthName: item.monthName,
       count: mRecs.length,
-      avgValue: vals.length > 0 ? Number(mean(vals).toFixed(2)) : null,
+      avgValue: vals.length > 0 ? mean(vals) : null,
       peakValue: vals.length > 0 ? Number(Math.max(...vals).toFixed(2)) : null,
+      minValue: vals.length > 0 ? Number(Math.min(...vals).toFixed(2)) : null,
     };
   });
 
-  // Yearly stats
-  const allYearValues = yearRecords.map((r) => getMetricValue(r, metricKey));
+  const allYearValues = yearRecords.map((r) => getTravelTime(r));
   let worstDate = null;
   if (calendarData.length > 0) {
     const sorted = [...calendarData].sort((a, b) => b[1] - a[1]);
@@ -663,8 +760,8 @@ export function buildYearlyCalendarData(records, targetYear, metricKey = 'travel
   const yearlyStats = {
     totalObservations: yearRecords.length,
     recordedDaysCount: dateMap.size,
-    avgValue: allYearValues.length > 0 ? Number(mean(allYearValues).toFixed(2)) : null,
-    medianValue: allYearValues.length > 0 ? Number(median(allYearValues).toFixed(2)) : null,
+    avgValue: allYearValues.length > 0 ? mean(allYearValues) : null,
+    medianValue: allYearValues.length > 0 ? median(allYearValues) : null,
     peakValue: allYearValues.length > 0 ? Number(Math.max(...allYearValues).toFixed(2)) : null,
     worstDate,
   };
@@ -678,8 +775,7 @@ export function buildYearlyCalendarData(records, targetYear, metricKey = 'travel
     monthHourMatrix,
     monthSummary,
     yearlyStats,
-    metricKey,
+    metricKey: 'travel_time_min',
     metricAggregation,
   };
 }
-

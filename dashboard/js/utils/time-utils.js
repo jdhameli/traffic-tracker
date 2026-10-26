@@ -186,6 +186,18 @@ export function getRollingWeekRangeEDT(dateStr, numDays = 7) {
 }
 
 /**
+ * Given a date in EDT, returns 28 consecutive days (4 full weeks, Sun-Sat)
+ * such that the week containing dateStr is at the bottom (latest week).
+ * @param {string} dateStr - 'YYYY-MM-DD'
+ * @returns {{ startDate: string, endDate: string, days: string[] }}
+ */
+export function get4WeekRangeEDT(dateStr) {
+  const { startDate: currentWeekSunday } = getWeekRangeEDT(dateStr);
+  const startSunday = shiftDateStr(currentWeekSunday, -21);
+  return getRollingWeekRangeEDT(startSunday, 28);
+}
+
+/**
  * Shifts a YYYY-MM-DD date string by N days.
  * @param {string} dateStr
  * @param {number} daysDelta
