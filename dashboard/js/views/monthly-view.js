@@ -33,14 +33,6 @@ export function renderMonthlyView(containerEl, records, state) {
   const metricKey = state.selectedMetric || 'travel_time_min';
   const metricConfig = METRIC_CONFIGS[metricKey] || METRIC_CONFIGS.travel_time_min;
 
-  // Update decoupled responsive HTML header (eliminates text collisions across all layouts)
-  updateChartHeader({
-    title: `Monthly ${metricConfig.label} Overview: ${targetMonth} (EDT)`,
-    subtitle: `Daily ${metricConfig.label} progression compared to historical monthly median`,
-    unit: metricConfig.unit,
-    metricLabel: metricConfig.label,
-  });
-
   const monthlyData = computeMonthlyViewData(records, targetMonth, metricKey);
   const { daysData, daysInMonth, monthlyMedianBaseline } = monthlyData;
 
@@ -48,6 +40,23 @@ export function renderMonthlyView(containerEl, records, state) {
   const actualAvgVals = daysData.map((d) => (d.count > 0 ? d.avgValue : null));
 
   const histMedianValue = monthlyMedianBaseline.medianValue;
+
+  const allVals = [
+    ...actualAvgVals.filter((v) => v !== null),
+    histMedianValue !== null && histMedianValue !== undefined ? histMedianValue : null,
+  ].filter((v) => v !== null);
+  const minVal = allVals.length > 0 ? Math.min(...allVals) : null;
+  const maxVal = allVals.length > 0 ? Math.max(...allVals) : null;
+
+  // Update decoupled responsive HTML header (eliminates text collisions across all layouts)
+  updateChartHeader({
+    title: `Monthly ${metricConfig.label} Overview: ${targetMonth} (EDT)`,
+    subtitle: `Daily ${metricConfig.label} progression compared to historical monthly median`,
+    unit: metricConfig.unit,
+    metricLabel: metricConfig.label,
+    minVal,
+    maxVal,
+  });
 
   const option = {
     backgroundColor: 'transparent',
@@ -102,15 +111,7 @@ export function renderMonthlyView(containerEl, records, state) {
       },
     },
     legend: {
-      bottom: isMobile ? 4 : 8,
-      left: 'center',
-      orient: 'horizontal',
-      itemGap: isMobile ? 12 : 24,
-      textStyle: { color: THEME_COLORS.textSecondary, fontSize: isMobile ? 10 : 11 },
-      data: [
-        `Daily Avg ${metricConfig.label}`,
-        'Historical Monthly Median',
-      ],
+      show: false,
     },
     grid: {
       top: isMobile ? 22 : 28,

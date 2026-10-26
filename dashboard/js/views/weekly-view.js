@@ -36,14 +36,6 @@ export function renderWeeklyView(containerEl, records, state) {
   const weeklyData = computeWeeklyViewData(records, selectedDate, metricKey);
   const { startDate, endDate, weekDaysData, weeklyMedianBaseline } = weeklyData;
 
-  // Update decoupled responsive HTML header (eliminates text collisions across all layouts)
-  updateChartHeader({
-    title: `Weekly ${metricConfig.label} Profile: ${startDate} to ${endDate} (EDT)`,
-    subtitle: `Daily average ${metricConfig.label} vs. historical weekly median benchmark from prior weeks`,
-    unit: metricConfig.unit,
-    metricLabel: metricConfig.label,
-  });
-
   const dayLabels = weekDaysData.map((d) => (isMobile ? d.dayName : `${d.dayName}\n${d.dateStr.substring(5)}`));
   const actualAvgVals = weekDaysData.map((d) => (d.count > 0 ? d.avgValue : null));
   const medianWeeklyBaseline = weeklyMedianBaseline.map((b) => b.medianValue);
@@ -52,8 +44,19 @@ export function renderWeeklyView(containerEl, records, state) {
     ...actualAvgVals.filter((v) => v !== null),
     ...medianWeeklyBaseline.filter((v) => v !== null),
   ];
+  const minVal = allVals.length > 0 ? Math.min(...allVals) : null;
   const maxVal = allVals.length > 0 ? Math.max(...allVals) : 0;
   const yUpper = maxVal > 0 ? Math.ceil(maxVal * 1.25) : 5;
+
+  // Update decoupled responsive HTML header (eliminates text collisions across all layouts)
+  updateChartHeader({
+    title: `Weekly ${metricConfig.label} Profile: ${startDate} to ${endDate} (EDT)`,
+    subtitle: `Daily average ${metricConfig.label} vs. historical weekly median benchmark from prior weeks`,
+    unit: metricConfig.unit,
+    metricLabel: metricConfig.label,
+    minVal,
+    maxVal,
+  });
 
   const option = {
     backgroundColor: 'transparent',
@@ -113,15 +116,7 @@ export function renderWeeklyView(containerEl, records, state) {
       },
     },
     legend: {
-      bottom: isMobile ? 4 : 8,
-      left: 'center',
-      orient: 'horizontal',
-      itemGap: isMobile ? 12 : 24,
-      textStyle: { color: THEME_COLORS.textSecondary, fontSize: isMobile ? 10 : 11 },
-      data: [
-        `Weekly Avg ${metricConfig.label}`,
-        'Historical Weekly Median',
-      ],
+      show: false,
     },
     grid: {
       top: isMobile ? 22 : 28,
