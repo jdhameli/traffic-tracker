@@ -917,3 +917,5 @@ timestamp,route_id,direction,origin_id,origin_name,destination_id,destination_na
 2026-11-10T13:30:28.573Z,ROUTE_05,reverse,LOC_05,Location 5,LOC_01,Location 1,40.1,49.57,7.8,41.77,OK,
 2026-11-10T14:00:28.347Z,ROUTE_05,forward,LOC_01,Location 1,LOC_05,Location 5,39.94,75.4,26.73,48.67,OK,
 2026-11-10T14:00:28.983Z,ROUTE_05,reverse,LOC_05,Location 5,LOC_01,Location 1,40.1,42.45,2.77,39.68,OK,
+2026-11-10T14:30:27.672Z,ROUTE_05,forward,LOC_01,Location 1,LOC_05,Location 5,,,,,ERROR,Body is unusable: Body has already been read
+2026-11-10T14:30:28.246Z,ROUTE_05,reverse,LOC_05,Location 5,LOC_01,Location 1,40.1,39.88,0,39.88,OK,
